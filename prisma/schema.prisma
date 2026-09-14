@@ -1,0 +1,156 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  passwordHash  String?
+  gamertag      String    @unique
+  image         String?   // URL del avatar activo actual
+  rank          String    @default("NOVICE")
+  totalPoints   Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  progress      UserGameProgress[]
+  unlockedAvatars UserUnlockedAvatar[]
+  evidences     EvidenceSubmission[]
+}
+
+model Franchise {
+  id          String        @id @default(cuid())
+  name        String
+  slug        String        @unique
+  coverImage  String
+  bannerImage String?
+  apiSource   String?
+  categories  Subcategory[]
+  avatars     UnlockableAvatar[]
+}
+
+model Subcategory {
+  id          String     @id @default(cuid())
+  title       String
+  orderIndex  Int        @default(0)
+  franchiseId String
+  franchise   Franchise  @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
+  games       Game[]
+}
+
+model Game {
+  id                    String             @id @default(cuid())
+  title                 String
+  year                  Int
+  rawgSlug              String?            @unique
+  coverImage            String?
+  releaseDate           DateTime?
+  platforms             String[]           @default([])
+  description           String?
+  subcategoryId         String
+  subcategory           Subcategory        @relation(fields: [subcategoryId], references: [id], onDelete: Cascade)
+  manualCategoryOverride Boolean           @default(false)
+  progress              UserGameProgress[]
+  rewardAvatar          UnlockableAvatar?  @relation(fields: [rewardAvatarId], references: [id])
+  rewardAvatarId        String?
+}
+
+model GameBlacklist {
+  id            String   @id @default(cuid())
+  franchiseSlug String
+  rawgSlug      String?
+  title         String
+  reason        String?
+  createdAt     DateTime @default(now())
+
+  @@index([franchiseSlug])
+  @@index([rawgSlug])
+  @@map("BlacklistedGame")
+}
+
+model UserGameProgress {
+  id         String   @id @default(cuid())
+  userId     String
+  gameId     String
+  completed  Boolean  @default(false)
+  mastered   Boolean  @default(false)
+  updatedAt  DateTime @updatedAt
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game       Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  evidence   EvidenceSubmission?
+
+  @@unique([userId, gameId])
+}
+
+model UnlockableAvatar {
+  id             String   @id @default(cuid())
+  title          String   // Ej: "Captain Falcon Vintage", "Fire Mario 8-bit"
+  imageUrl       String
+  franchiseId    String
+  franchise      Franchise @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
+  games          Game[]   // Desbloqueado al completar o masterizar este juego
+  requiredMaster Boolean  @default(false) // Si requiere 100% o solo beat
+
+  unlockedBy     UserUnlockedAvatar[]
+}
+
+model UserUnlockedAvatar {
+  id         String           @id @default(cuid())
+  userId     String
+  avatarId   String
+  unlockedAt DateTime         @default(now())
+
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  avatar     UnlockableAvatar @relation(fields: [avatarId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, avatarId])
+}
+
+model EvidenceSubmission {
+  id         String           @id @default(cuid())
+  userId     String
+  progressId String           @unique
+  imageUrl   String
+  status     String           @default("PENDING") // PENDING, APPROVED, REJECTED
+  createdAt  DateTime         @default(now())
+
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  progress   UserGameProgress @relation(fields: [progressId], references: [id], onDelete: Cascade)
+}
+
+// Modelos estándar requeridos por NextAuth
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
