@@ -36,6 +36,7 @@ model Franchise {
   apiSource   String?
   categories  Subcategory[]
   avatars     UnlockableAvatar[]
+  fanArts     FanArtSubmission[]
 }
 
 model Subcategory {
@@ -126,6 +127,41 @@ model EvidenceSubmission {
 
   user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   progress   UserGameProgress @relation(fields: [progressId], references: [id], onDelete: Cascade)
+}
+
+model FanArtSubmission {
+  id          String    @id @default(cuid())
+  franchiseId String?
+  franchise   Franchise? @relation(fields: [franchiseId], references: [id], onDelete: SetNull)
+  title       String
+  artistName  String
+  imageUrl    String
+  month       String
+  year        Int
+  isFeatured  Boolean   @default(false)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([franchiseId])
+  @@index([isFeatured, isActive])
+}
+
+model Reward {
+  id            String   @id @default(cuid())
+  title         String
+  company       String
+  imageUrl      String
+  description   String?
+  pointsRequired Int
+  stock         Int      @default(1)
+  category      String   @default("PHYSICAL")
+  isActive      Boolean  @default(true)
+  externalLink  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([isActive])
 }
 
 // Modelos estándar requeridos por NextAuth

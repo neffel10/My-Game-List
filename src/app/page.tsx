@@ -13,22 +13,34 @@ function getEraLabel(years: number[]) {
 }
 
 export default async function HomePage() {
-  const franchises = await prisma.franchise.findMany({
-    include: {
-      categories: {
-        include: {
-          games: {
-            select: {
-              year: true,
+  const [franchises, featuredFanArt, rewards] = await Promise.all([
+    prisma.franchise.findMany({
+      include: {
+        categories: {
+          include: {
+            games: {
+              select: {
+                year: true,
+              },
             },
           },
         },
       },
-    },
-    orderBy: {
-      name: 'asc',
-    },
-  });
+      orderBy: {
+        name: 'asc',
+      },
+    }),
+    prisma.fanArtSubmission.findFirst({
+      where: { isFeatured: true, isActive: true },
+      include: { franchise: true },
+      orderBy: { createdAt: 'desc' },
+    }),
+    prisma.reward.findMany({
+      where: { isActive: true },
+      orderBy: { pointsRequired: 'asc' },
+      take: 3,
+    }),
+  ]);
 
   const mappedFranchises = franchises
     .map((franchise) => {
@@ -52,6 +64,24 @@ export default async function HomePage() {
 
   const featuredFranchise =
     mappedFranchises.find((franchise) => franchise.slug === 'pokemon') ?? mappedFranchises[0] ?? null;
+
+  const featuredDisplay = featuredFanArt
+    ? {
+        imageSrc: featuredFanArt.imageUrl,
+        franchiseName: featuredFanArt.franchise?.name ?? featuredFranchise?.name ?? 'Featured franchise',
+        artistName: featuredFanArt.artistName,
+        franchiseSlug: featuredFanArt.franchise?.slug ?? featuredFranchise?.slug ?? '#',
+        totalGames: featuredFranchise?.totalGames ?? 0,
+      }
+    : featuredFranchise
+      ? {
+          imageSrc: featuredFranchise.imageSrc,
+          franchiseName: featuredFranchise.name,
+          artistName: '@CommunityArt',
+          franchiseSlug: featuredFranchise.slug,
+          totalGames: featuredFranchise.totalGames,
+        }
+      : null;
 
   return (
     <div className="min-h-screen bg-[#07090e] text-zinc-100 flex flex-col">
@@ -110,13 +140,13 @@ export default async function HomePage() {
               </div>
 
               <div className="lg:col-span-5">
-                {featuredFranchise && (
+                {featuredDisplay && (
                   <FeaturedFanArt
-                    imageSrc={featuredFranchise.imageSrc}
-                    franchiseName={featuredFranchise.name}
-                    artistName="@CommunityArt"
-                    franchiseSlug={featuredFranchise.slug}
-                    totalGames={featuredFranchise.totalGames}
+                    imageSrc={featuredDisplay.imageSrc}
+                    franchiseName={featuredDisplay.franchiseName}
+                    artistName={featuredDisplay.artistName}
+                    franchiseSlug={featuredDisplay.franchiseSlug}
+                    totalGames={featuredDisplay.totalGames}
                   />
                 )}
               </div>
@@ -192,21 +222,32 @@ export default async function HomePage() {
                   Top point earners this month receive gaming merchandise, figurines, and official game keys.
                 </p>
                 <div className="mt-4 space-y-2 text-xs">
-                  <div className="flex justify-between py-1.5 border-b border-white/[0.05]">
-                    <span className="text-zinc-400">Tier 1</span>
-                    <span className="font-semibold text-white">Collector figure</span>
-                  </div>
-                  <div className="flex justify-between py-1.5 border-b border-white/[0.05]">
-                    <span className="text-zinc-400">Tier 2</span>
-                    <span className="font-semibold text-white">Mug + Steam card</span>
-                  </div>
-                  <div className="flex justify-between py-1.5">
-                    <span className="text-zinc-400">Tier 3</span>
-                    <span className="font-semibold text-white">Digital game key</span>
-                  </div>
+                  {rewards.length > 0 ? (
+                   rewards.map((reward) => (
+                     <div key={reward.id} className="flex justify-between gap-3 py-1.5 border-b border-white/[0.05]">
+                       <span className="text-zinc-400">{reward.pointsRequired} pts</span>
+                       <span className="font-semibold text-white text-right">{reward.title}</span>
+                     </div>
+                   ))
+                  ) : (
+                   <>
+                     <div className="flex justify-between py-1.5 border-b border-white/[0.05]">
+                       <span className="text-zinc-400">Tier 1</span>
+                       <span className="font-semibold text-white">Collector figure</span>
+                     </div>
+                     <div className="flex justify-between py-1.5 border-b border-white/[0.05]">
+                       <span className="text-zinc-400">Tier 2</span>
+                       <span className="font-semibold text-white">Mug + Steam card</span>
+                     </div>
+                     <div className="flex justify-between py-1.5">
+                       <span className="text-zinc-400">Tier 3</span>
+                       <span className="font-semibold text-white">Digital game key</span>
+                     </div>
+                   </>
+                  )}
                 </div>
                 <Link
-                  href="/franchises"
+                  href="/rewards"
                   className="mt-5 block w-full rounded-lg border border-white/10 bg-white/5 py-2 text-center text-xs font-medium text-white hover:bg-white/10 transition"
                 >
                   View Rewards Rules
@@ -251,7 +292,7 @@ export default async function HomePage() {
           <div className="flex gap-6">
             <Link href="/franchises" className="hover:text-zinc-400">Franchises</Link>
             <Link href="/profile" className="hover:text-zinc-400">Profile</Link>
-            <Link href="/admin/evidence" className="hover:text-zinc-400">Admin</Link>
+            <Link href="/admin/content" className="hover:text-zinc-400">Admin</Link>
           </div>
         </div>
       </footer>

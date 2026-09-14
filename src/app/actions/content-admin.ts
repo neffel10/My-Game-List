@@ -1,0 +1,199 @@
+'use server';
+
+import { auth } from '@/auth';
+import { prisma } from '@/lib/prisma';
+import { revalidatePath } from 'next/cache';
+
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? process.env.ADMIN_EMAIL ?? 'admin@mygamelist.local')
+  .split(',')
+  .map((email) => email.trim().toLowerCase())
+  .filter(Boolean);
+
+const MAX_IMAGE_SIZE = 3 * 1024 * 1024;
+
+function isAdminEmail(email?: string | null) {
+  return !!email && ADMIN_EMAILS.includes(email.toLowerCase());
+}
+
+async function parseImageDataUrl(file: File) {
+  if (!(file instanceof File)) {
+    throw new Error('Please select a valid image file.');
+  }
+
+  if (!file.type.startsWith('image/')) {
+    throw new Error('Only image files are allowed.');
+  }
+
+  if (file.size > MAX_IMAGE_SIZE) {
+    throw new Error('The image is too large. Please use a file smaller than 3MB.');
+  }
+
+  const arrayBuffer = await file.arrayBuffer();
+  const base64 = Buffer.from(arrayBuffer).toString('base64');
+  return `data:${file.type || 'image/jpeg'};base64,${base64}`;
+}
+
+async function requireAdmin() {
+  const session = await auth();
+  if (!session?.user?.email || !isAdminEmail(session.user.email)) {
+    throw new Error('This action is restricted to administrators.');
+  }
+  return session;
+}
+
+export async function saveFeaturedFanArt(formData: FormData) {
+  try {
+    await requireAdmin();
+
+    const franchiseId = String(formData.get('franchiseId') ?? '').trim();
+    const title = String(formData.get('title') ?? '').trim();
+    const artistName = String(formData.get('artistName') ?? '').trim();
+    const month = String(formData.get('month') ?? '').trim();
+    const imageFile = formData.get('image');
+
+    if (!franchiseId || !title || !artistName || !month || !(imageFile instanceof File)) {
+      throw new Error('Franchise, title, artist, month, and image are required.');
+    }
+
+    const imageUrl = await parseImageDataUrl(imageFile);
+    const year = Number(formData.get('year') ?? new Date().getFullYear());
+
+    await prisma.fanArtSubmission.updateMany({
+      where: { isFeatured: true },
+      data: { isFeatured: false },
+    });
+
+    await prisma.fanArtSubmission.create({
+      data: {
+        franchiseId,
+        title,
+        artistName,
+        imageUrl,
+        month,
+        year,
+        isFeatured: true,
+        isActive: true,
+      },
+    });
+
+    revalidatePath('/');
+    revalidatePath('/admin/content');
+    revalidatePath('/fan-art');
+  } catch (error) {
+    console.error(error);
+    throw error instanceof Error ? error : new Error('An unexpected error occurred while saving the fan art.');
+  }
+}
+
+export async function saveFranchiseFanArt(formData: FormData) {
+  try {
+    await requireAdmin();
+
+    const franchiseId = String(formData.get('franchiseId') ?? '').trim();
+    const title = String(formData.get('title') ?? '').trim();
+    const artistName = String(formData.get('artistName') ?? '').trim();
+    const month = String(formData.get('month') ?? '').trim();
+    const imageFile = formData.get('image');
+
+    if (!franchiseId || !title || !artistName || !month || !(imageFile instanceof File)) {
+      throw new Error('Franchise, title, artist, month, and image are required.');
+    }
+
+    const imageUrl = await parseImageDataUrl(imageFile);
+    const year = Number(formData.get('year') ?? new Date().getFullYear());
+
+    await prisma.fanArtSubmission.create({
+      data: {
+        franchiseId,
+        title,
+        artistName,
+        imageUrl,
+        month,
+        year,
+        isFeatured: false,
+        isActive: true,
+      },
+    });
+
+    revalidatePath('/');
+    revalidatePath('/admin/content');
+    revalidatePath('/fan-art');
+  } catch (error) {
+    console.error(error);
+    throw error instanceof Error ? error : new Error('An unexpected error occurred while saving the franchise art.');
+  }
+}
+
+export async function saveReward(formData: FormData) {
+  try {
+    await requireAdmin();
+
+    const title = String(formData.get('title') ?? '').trim();
+    const company = String(formData.get('company') ?? '').trim();
+    const description = String(formData.get('description') ?? '').trim();
+    const category = String(formData.get('category') ?? 'PHYSICAL').trim();
+    const pointsRequired = Number(formData.get('pointsRequired') ?? 0);
+    const stock = Number(formData.get('stock') ?? 1);
+    const externalLink = String(formData.get('externalLink') ?? '').trim();
+    const imageFile = formData.get('image');
+
+    if (!title || !company || !(imageFile instanceof File) || !Number.isFinite(pointsRequired) || pointsRequired <= 0) {
+      throw new Error('Title, company, image, and a valid points requirement are required.');
+    }
+
+    const imageUrl = await parseImageDataUrl(imageFile);
+
+    await prisma.reward.create({
+      data: {
+        title,
+        company,
+        description: description || null,
+        imageUrl,
+        pointsRequired,
+        stock: Number.isFinite(stock) && stock > 0 ? stock : 1,
+        category: category || 'PHYSICAL',
+        isActive: true,
+        externalLink: externalLink || null,
+      },
+    });
+
+    revalidatePath('/');
+    revalidatePath('/rewards');
+    revalidatePath('/admin/content');
+  } catch (error) {
+    console.error(error);
+    throw error instanceof Error ? error : new Error('An unexpected error occurred while saving the reward.');
+  }
+}
+
+export async function toggleFanArtStatus(id: string, isActive: boolean) {
+  try {
+    await requireAdmin();
+    await prisma.fanArtSubmission.update({
+      where: { id },
+      data: { isActive },
+    });
+    revalidatePath('/');
+    revalidatePath('/admin/content');
+    revalidatePath('/fan-art');
+  } catch (error) {
+    console.error(error);
+    throw error instanceof Error ? error : new Error('Unable to update the fan art status.');
+  }
+}
+
+export async function toggleRewardStatus(id: string, isActive: boolean) {
+  try {
+    await requireAdmin();
+    await prisma.reward.update({
+      where: { id },
+      data: { isActive },
+    });
+    revalidatePath('/');
+    revalidatePath('/admin/content');
+    revalidatePath('/rewards');
+  } catch (error) {
+    console.error(error);
+    throw error instanceof Error ? error : new Error('Unable to update the reward status.');
+  }
+}
