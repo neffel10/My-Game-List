@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
-import { Gamepad2, Search, Trophy, Compass, LogIn, Menu, X, User, LogOut } from 'lucide-react';
+import { Gamepad2, Search, Trophy, Compass, LogIn, Menu, X, User, LogOut, ShieldCheck } from 'lucide-react';
 import AuthModal from '@/components/auth/AuthModal';
 
 export default function Navbar() {
@@ -69,45 +69,63 @@ export default function Navbar() {
 
             {/* User Session State or Sign In Button */}
             {currentUser ? (
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/10 transition-all cursor-pointer"
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/admin/content"
+                  className="hidden items-center gap-1.5 rounded-full border border-violet-400/40 bg-violet-500/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-violet-100 transition hover:bg-violet-500/15 sm:inline-flex"
                 >
-                  <div className="relative h-5 w-5 overflow-hidden rounded-full border border-white/20 bg-zinc-800">
-                    <Image
-                      src={currentUser.image || '/images/avatars/default.png'}
-                      alt="User Avatar"
-                      fill
-                      sizes="20px"
-                      className="object-cover"
-                    />
-                  </div>
-                  <span className="max-w-[110px] truncate">{currentUser.name || 'Gamer'}</span>
-                </button>
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  Admin Hub
+                </Link>
 
-                {/* Dropdown Menu de Usuario */}
-                {userMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 rounded-xl border border-white/10 bg-zinc-950 p-1 shadow-2xl z-50 text-xs">
-                    <Link
-                      href="/profile"
-                      onClick={() => setUserMenuOpen(false)}
-                      className="flex items-center gap-2 rounded-lg px-3 py-2 text-zinc-300 hover:bg-white/10 hover:text-white transition"
-                    >
-                      <User className="h-3.5 w-3.5" />
-                      <span>My Profile</span>
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={handleSignOut}
-                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-red-400 hover:bg-red-500/10 transition text-left cursor-pointer"
-                    >
-                      <LogOut className="h-3.5 w-3.5" />
-                      <span>Sign Out</span>
-                    </button>
-                  </div>
-                )}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setUserMenuOpen(!userMenuOpen)}
+                    className="flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/10 transition-all cursor-pointer"
+                  >
+                    <div className="relative h-5 w-5 overflow-hidden rounded-full border border-white/20 bg-zinc-800">
+                      <Image
+                        src={currentUser.image || '/images/avatars/default.png'}
+                        alt="User Avatar"
+                        fill
+                        sizes="20px"
+                        className="object-cover"
+                      />
+                    </div>
+                    <span className="max-w-[110px] truncate">{currentUser.name || 'Gamer'}</span>
+                  </button>
+
+                  {/* Dropdown Menu de Usuario */}
+                  {userMenuOpen && (
+                    <div className="absolute right-0 mt-2 w-48 rounded-xl border border-white/10 bg-zinc-950 p-1 shadow-2xl z-50 text-xs">
+                      <Link
+                        href="/profile"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="flex items-center gap-2 rounded-lg px-3 py-2 text-zinc-300 hover:bg-white/10 hover:text-white transition"
+                      >
+                        <User className="h-3.5 w-3.5" />
+                        <span>My Profile</span>
+                      </Link>
+                      <Link
+                        href="/admin/content"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="flex items-center gap-2 rounded-lg px-3 py-2 text-violet-200 hover:bg-violet-500/10 transition"
+                      >
+                        <ShieldCheck className="h-3.5 w-3.5" />
+                        <span>Admin Hub</span>
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={handleSignOut}
+                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-red-400 hover:bg-red-500/10 transition text-left cursor-pointer"
+                      >
+                        <LogOut className="h-3.5 w-3.5" />
+                        <span>Sign Out</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             ) : (
               <button
@@ -144,6 +162,9 @@ export default function Navbar() {
               </Link>
               <Link href="/fan-art" onClick={() => setMobileMenuOpen(false)} className="py-1 hover:text-white">
                 Fan Art Contest
+              </Link>
+              <Link href="/admin/content" onClick={() => setMobileMenuOpen(false)} className="py-1 text-violet-200 hover:text-violet-100">
+                Admin Hub
               </Link>
               <Link href="/community" onClick={() => setMobileMenuOpen(false)} className="py-1 hover:text-white">
                 Community

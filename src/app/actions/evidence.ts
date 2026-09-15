@@ -2,6 +2,7 @@
 
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import { uploadImageToBlob } from '@/lib/blob-upload';
 import { revalidatePath } from 'next/cache';
 
 const MAX_EVIDENCE_FILE_SIZE = 4 * 1024 * 1024;
@@ -60,8 +61,15 @@ export async function uploadEvidence(formData: FormData) {
     };
   }
 
-  const arrayBuffer = await file.arrayBuffer();
-  const imageUrl = `data:${file.type || 'image/jpeg'};base64,${Buffer.from(arrayBuffer).toString('base64')}`;
+  let imageUrl: string;
+
+  try {
+    imageUrl = await uploadImageToBlob(file, 'evidence', MAX_EVIDENCE_FILE_SIZE);
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : 'The proof image could not be uploaded to storage.',
+    };
+  }
 
   await prisma.evidenceSubmission.upsert({
     where: { progressId },
