@@ -39,6 +39,17 @@ export async function saveFeaturedFanArt(formData: FormData) {
     const month = String(formData.get('month') ?? '').trim();
     const imageFile = formData.get('image');
 
+    console.log('[saveFeaturedFanArt]', {
+      franchiseId,
+      title,
+      artistName,
+      month,
+      hasImage: imageFile instanceof File,
+      imageName: imageFile instanceof File ? imageFile.name : null,
+      imageSize: imageFile instanceof File ? imageFile.size : null,
+      adminBypass: ADMIN_BYPASS_ENABLED,
+    });
+
     if (!franchiseId || !title || !artistName || !month || !(imageFile instanceof File)) {
       throw new Error('Franchise, title, artist, month, and image are required.');
     }
@@ -68,8 +79,8 @@ export async function saveFeaturedFanArt(formData: FormData) {
     revalidatePath('/admin/content');
     revalidatePath('/fan-art');
   } catch (error) {
-    console.error('saveFeaturedFanArt failed:', error);
-    return;
+    console.error('[saveFeaturedFanArt failed]', error);
+    throw error;
   }
 }
 
@@ -83,9 +94,25 @@ export async function saveFranchiseFanArt(formData: FormData) {
     const month = String(formData.get('month') ?? '').trim();
     const imageFile = formData.get('image');
 
+    console.log('[saveFranchiseFanArt]', {
+      franchiseId,
+      title,
+      artistName,
+      month,
+      hasImage: imageFile instanceof File,
+      imageName: imageFile instanceof File ? imageFile.name : null,
+      imageSize: imageFile instanceof File ? imageFile.size : null,
+    });
+
     if (!franchiseId || !title || !artistName || !month || !(imageFile instanceof File)) {
-      console.error('saveFranchiseFanArt validation failed');
-      return;
+      console.error('[saveFranchiseFanArt validation failed]', {
+        franchiseId,
+        title,
+        artistName,
+        month,
+        hasImage: imageFile instanceof File,
+      });
+      throw new Error('Franchise fan art validation failed.');
     }
 
     const imageUrl = await uploadImageToBlob(imageFile, 'fan-art-franchise', MAX_IMAGE_SIZE);
@@ -108,8 +135,8 @@ export async function saveFranchiseFanArt(formData: FormData) {
     revalidatePath('/admin/content');
     revalidatePath('/fan-art');
   } catch (error) {
-    console.error('saveFranchiseFanArt failed:', error);
-    return;
+    console.error('[saveFranchiseFanArt failed]', error);
+    throw error;
   }
 }
 
@@ -126,9 +153,24 @@ export async function saveReward(formData: FormData) {
     const externalLink = String(formData.get('externalLink') ?? '').trim();
     const imageFile = formData.get('image');
 
+    console.log('[saveReward]', {
+      title,
+      company,
+      pointsRequired,
+      category,
+      hasImage: imageFile instanceof File,
+      imageName: imageFile instanceof File ? imageFile.name : null,
+      imageSize: imageFile instanceof File ? imageFile.size : null,
+    });
+
     if (!title || !company || !(imageFile instanceof File) || !Number.isFinite(pointsRequired) || pointsRequired <= 0) {
-      console.error('saveReward validation failed');
-      return;
+      console.error('[saveReward validation failed]', {
+        title,
+        company,
+        pointsRequired,
+        hasImage: imageFile instanceof File,
+      });
+      throw new Error('Reward validation failed.');
     }
 
     const imageUrl = await uploadImageToBlob(imageFile, 'rewards', MAX_IMAGE_SIZE);
@@ -151,8 +193,8 @@ export async function saveReward(formData: FormData) {
     revalidatePath('/rewards');
     revalidatePath('/admin/content');
   } catch (error) {
-    console.error('saveReward failed:', error);
-    return;
+    console.error('[saveReward failed]', error);
+    throw error;
   }
 }
 

@@ -20,6 +20,16 @@ export async function uploadImageToBlob(file: File, folder: string, maxBytes = D
   validateImageFile(file, maxBytes);
 
   const token = process.env.BLOB_READ_WRITE_TOKEN?.trim();
+  console.log('[Blob Upload Debug]', {
+    folder,
+    fileName: file.name,
+    type: file.type,
+    size: file.size,
+    hasToken: Boolean(token),
+    tokenPrefix: token ? token.slice(0, 12) : null,
+    nodeEnv: process.env.NODE_ENV,
+  });
+
   if (!token) {
     throw new Error('Missing BLOB_READ_WRITE_TOKEN. Add the real Vercel Blob token to your environment variables.');
   }
@@ -28,11 +38,24 @@ export async function uploadImageToBlob(file: File, folder: string, maxBytes = D
     throw new Error('BLOB_READ_WRITE_TOKEN is still a placeholder. Add the real token from Vercel Blob in the project environment before uploading images.');
   }
 
-  const blob = await put(`${folder}/${Date.now()}-${file.name.replace(/\s+/g, '-').toLowerCase()}`, file, {
-    access: 'public',
-    addRandomSuffix: true,
-    contentType: file.type || 'image/jpeg',
-  });
+  try {
+    const blob = await put(`${folder}/${Date.now()}-${file.name.replace(/\s+/g, '-').toLowerCase()}`, file, {
+      access: 'public',
+      addRandomSuffix: true,
+      contentType: file.type || 'image/jpeg',
+    });
 
-  return blob.url;
+    console.log('[Blob Upload Success]', { url: blob.url, pathname: blob.pathname });
+    return blob.url;
+  } catch (error) {
+    console.error('[Blob Upload Failed]', {
+      folder,
+      fileName: file.name,
+      size: file.size,
+      type: file.type,
+      tokenPrefix: token.slice(0, 12),
+      error,
+    });
+    throw error;
+  }
 }
