@@ -131,7 +131,16 @@ export async function saveFranchiseFanArt(formData: FormData) {
       },
     });
 
+    await prisma.franchise.update({
+      where: { id: franchiseId },
+      data: {
+        coverImage: imageUrl,
+        bannerImage: imageUrl,
+      },
+    });
+
     revalidatePath('/');
+    revalidatePath('/franchises');
     revalidatePath('/admin/content');
     revalidatePath('/fan-art');
   } catch (error) {

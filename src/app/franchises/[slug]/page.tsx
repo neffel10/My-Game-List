@@ -38,6 +38,11 @@ export default async function FranchisePage({ params }: PageProps) {
           },
         },
       },
+      fanArts: {
+        where: { isActive: true },
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+      },
     },
   });
 
@@ -75,10 +80,13 @@ export default async function FranchisePage({ params }: PageProps) {
     }),
   }));
 
+  const coverArtistName = franchise.fanArts[0]?.artistName ?? null;
+
   return (
     <FranchiseChecklistView
       franchiseName={franchise.name}
       coverImage={franchise.coverImage}
+      coverArtistName={coverArtistName}
       franchiseSlug={franchise.slug}
       isAdmin={isAdmin}
       initialCategories={initialCategories}

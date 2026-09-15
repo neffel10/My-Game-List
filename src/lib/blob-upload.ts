@@ -48,14 +48,20 @@ export async function uploadImageToBlob(file: File, folder: string, maxBytes = D
     console.log('[Blob Upload Success]', { url: blob.url, pathname: blob.pathname });
     return blob.url;
   } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
     console.error('[Blob Upload Failed]', {
       folder,
       fileName: file.name,
       size: file.size,
       type: file.type,
       tokenPrefix: token.slice(0, 12),
-      error,
+      error: detail,
     });
+
+    if (detail.includes('private store') || detail.includes('private access')) {
+      throw new Error('The Vercel Blob store is configured as private. Set the store to Public access or create a new public Blob store and update BLOB_READ_WRITE_TOKEN.');
+    }
+
     throw error;
   }
 }

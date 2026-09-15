@@ -38,6 +38,7 @@ export interface ClientCategory {
 interface FranchiseChecklistViewProps {
   franchiseName: string;
   coverImage: string;
+  coverArtistName?: string | null;
   franchiseSlug: string;
   isAdmin: boolean;
   initialCategories: ClientCategory[];
@@ -46,6 +47,7 @@ interface FranchiseChecklistViewProps {
 export default function FranchiseChecklistView({
   franchiseName,
   coverImage,
+  coverArtistName,
   franchiseSlug,
   isAdmin,
   initialCategories,
@@ -368,6 +370,11 @@ export default function FranchiseChecklistView({
               <h1 className="mt-1 text-3xl sm:text-5xl font-extrabold tracking-tight text-white">
                 {franchiseName} Series
               </h1>
+              {coverArtistName && (
+                <p className="mt-2 text-sm text-zinc-200">
+                  Fan art by <span className="font-semibold text-white">{coverArtistName}</span>
+                </p>
+              )}
             </div>
 
             <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/60 p-3 backdrop-blur-md">
