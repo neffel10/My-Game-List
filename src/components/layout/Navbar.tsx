@@ -68,16 +68,16 @@ export default function Navbar() {
             </div>
 
             {/* User Session State or Sign In Button */}
-            {currentUser ? (
-              <div className="flex items-center gap-2">
-                <Link
-                  href="/admin/content"
-                  className="hidden items-center gap-1.5 rounded-full border border-violet-400/40 bg-violet-500/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-violet-100 transition hover:bg-violet-500/15 sm:inline-flex"
-                >
-                  <ShieldCheck className="h-3.5 w-3.5" />
-                  Admin Hub
-                </Link>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/admin/content"
+                className="hidden items-center gap-1.5 rounded-full border border-violet-400/40 bg-violet-500/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-violet-100 transition hover:bg-violet-500/15 sm:inline-flex"
+              >
+                <ShieldCheck className="h-3.5 w-3.5" />
+                Admin Hub
+              </Link>
 
+              {currentUser ? (
                 <div className="relative">
                   <button
                     type="button"
@@ -126,17 +126,17 @@ export default function Navbar() {
                     </div>
                   )}
                 </div>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setAuthModalOpen(true)}
-                className="flex items-center gap-2 rounded-full border border-white/15 bg-white text-zinc-950 px-4 py-1.5 text-xs font-semibold hover:bg-zinc-200 transition-all cursor-pointer shadow-sm"
-              >
-                <LogIn className="h-3.5 w-3.5" />
-                <span>Sign In</span>
-              </button>
-            )}
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setAuthModalOpen(true)}
+                  className="flex items-center gap-2 rounded-full border border-white/15 bg-white text-zinc-950 px-4 py-1.5 text-xs font-semibold hover:bg-zinc-200 transition-all cursor-pointer shadow-sm"
+                >
+                  <LogIn className="h-3.5 w-3.5" />
+                  <span>Sign In</span>
+                </button>
+              )}
+            </div>
 
             {/* Mobile hamburger button */}
             <button

@@ -19,8 +19,13 @@ export function validateImageFile(file: File, maxBytes = DEFAULT_IMAGE_MAX_BYTES
 export async function uploadImageToBlob(file: File, folder: string, maxBytes = DEFAULT_IMAGE_MAX_BYTES) {
   validateImageFile(file, maxBytes);
 
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    throw new Error('Missing BLOB_READ_WRITE_TOKEN. Add the token from Vercel Blob to your environment variables.');
+  const token = process.env.BLOB_READ_WRITE_TOKEN?.trim();
+  if (!token) {
+    throw new Error('Missing BLOB_READ_WRITE_TOKEN. Add the real Vercel Blob token to your environment variables.');
+  }
+
+  if (token.includes('replace_with') || token.includes('your_vercel_blob_token') || token.includes('example')) {
+    throw new Error('BLOB_READ_WRITE_TOKEN is still a placeholder. Add the real token from Vercel Blob in the project environment before uploading images.');
   }
 
   const blob = await put(`${folder}/${Date.now()}-${file.name.replace(/\s+/g, '-').toLowerCase()}`, file, {
