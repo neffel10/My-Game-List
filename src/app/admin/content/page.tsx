@@ -1,13 +1,14 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ImageIcon, Gift, Sparkles, ArrowLeft } from 'lucide-react';
+import { ImageIcon, Gift, Sparkles, ArrowLeft, Plus } from 'lucide-react';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import {
   saveFeaturedFanArt,
   saveFranchiseFanArt,
   saveReward,
+  createFranchise,
   toggleFanArtStatus,
   toggleRewardStatus,
 } from '@/app/actions/content-admin';
@@ -90,6 +91,54 @@ export default async function AdminContentPage() {
         </div>
 
         <div className="space-y-8">
+          <section className="rounded-2xl border border-white/10 bg-zinc-900/70 p-5 shadow-2xl">
+            <div className="mb-4 flex items-center gap-2">
+              <Plus className="h-5 w-5 text-cyan-300" />
+              <div>
+                <h2 className="text-xl font-bold text-white">Import a franchise</h2>
+                <p className="mt-1 text-sm text-zinc-400">
+                  Enter a franchise name and RAWG will import its matching games.
+                </p>
+              </div>
+            </div>
+
+            <form action={createFranchise} encType="multipart/form-data" className="grid gap-4 md:grid-cols-2">
+              <label className="flex flex-col gap-2 text-sm text-zinc-300">
+                Franchise name
+                <input
+                  name="name"
+                  required
+                  minLength={2}
+                  maxLength={80}
+                  placeholder="For example: Metroid"
+                  className="rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-white outline-none focus:border-cyan-400"
+                />
+              </label>
+
+              <label className="flex flex-col gap-2 text-sm text-zinc-300">
+                Franchise banner
+                <input
+                  type="file"
+                  name="image"
+                  accept="image/*"
+                  required
+                  className="rounded-xl border border-dashed border-white/15 bg-black/20 px-3 py-2.5 text-zinc-300 file:mr-3 file:rounded-md file:border-0 file:bg-cyan-500/15 file:px-3 file:py-2 file:text-cyan-200"
+                />
+                <span className="text-xs text-zinc-500">Maximum size: 3MB.</span>
+              </label>
+
+              <div className="md:col-span-2 flex justify-end">
+                <button
+                  type="submit"
+                  className="inline-flex items-center gap-2 rounded-xl border border-cyan-400/40 bg-cyan-500/10 px-5 py-2.5 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-500/15"
+                >
+                  <Plus className="h-4 w-4" />
+                  Import franchise
+                </button>
+              </div>
+            </form>
+          </section>
+
           <section className="rounded-2xl border border-white/10 bg-zinc-900/70 p-5 shadow-2xl">
             <div className="mb-4 flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-violet-300" />

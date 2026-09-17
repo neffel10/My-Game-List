@@ -3,6 +3,7 @@
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { uploadImageToBlob } from '@/lib/blob-upload';
+import { ensureFranchiseData } from '@/lib/seed-franchises';
 import { revalidatePath } from 'next/cache';
 
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? process.env.ADMIN_EMAIL ?? 'admin@mygamelist.local')
@@ -12,6 +13,16 @@ const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? process.env.ADMIN_EMAIL ?? 'ad
 
 const ADMIN_BYPASS_ENABLED = (process.env.ADMIN_BYPASS ?? 'true').toLowerCase() === 'true';
 const MAX_IMAGE_SIZE = 3 * 1024 * 1024;
+
+function slugify(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
 
 function isAdminEmail(email?: string | null) {
   return !!email && ADMIN_EMAILS.includes(email.toLowerCase());
@@ -27,6 +38,60 @@ async function requireAdmin() {
     throw new Error('This action is restricted to administrators.');
   }
   return session;
+}
+
+export async function createFranchise(formData: FormData) {
+  try {
+    await requireAdmin();
+
+    const name = String(formData.get('name') ?? '').trim();
+    const imageFile = formData.get('image');
+
+    if (name.length < 2 || name.length > 80 || !(imageFile instanceof File)) {
+      throw new Error('A franchise name and banner image are required.');
+    }
+
+    if (!process.env.RAWG_API_KEY) {
+      throw new Error('RAWG_API_KEY is not configured. Add it before importing a franchise.');
+    }
+
+    const slug = slugify(name);
+    if (!slug) {
+      throw new Error('The franchise name could not be converted into a valid URL slug.');
+    }
+
+    const existingFranchise = await prisma.franchise.findUnique({
+      where: { slug },
+      select: { id: true },
+    });
+
+    if (existingFranchise) {
+      throw new Error(`The franchise "${name}" already exists.`);
+    }
+
+    const imageUrl = await uploadImageToBlob(imageFile, 'franchise-banners', MAX_IMAGE_SIZE);
+    const result = await ensureFranchiseData({
+      slug,
+      name,
+      aliases: [name],
+      coverImage: imageUrl,
+      fallbackGames: [],
+    });
+
+    revalidatePath('/');
+    revalidatePath('/franchises');
+    revalidatePath('/admin/content');
+    revalidatePath(`/franchises/${slug}`);
+
+    console.log('[createFranchise success]', {
+      name,
+      slug,
+      importedGames: result.importedGames,
+    });
+  } catch (error) {
+    console.error('[createFranchise failed]', error);
+    throw error;
+  }
 }
 
 export async function saveFeaturedFanArt(formData: FormData) {

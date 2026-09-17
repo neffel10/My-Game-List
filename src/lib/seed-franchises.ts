@@ -82,6 +82,99 @@ const franchiseConfigs: Array<{
       { title: 'Resident Evil Village', releaseDate: '2021-05-07', platforms: ['PlayStation 5', 'Xbox Series S/X', 'PC'], coverImage: '/images/gameseries/resident-evil.jpg' },
     ],
   },
+  {
+    slug: 'final-fantasy',
+    name: 'Final Fantasy',
+    aliases: ['final fantasy', 'ff'],
+    coverImage: '/images/gameseries/finalfantasy.jpg',
+    fallbackGames: [
+      { title: 'Final Fantasy', releaseDate: '1987-12-18', platforms: ['Nintendo Entertainment System'], coverImage: '/images/gameseries/finalfantasy.jpg' },
+      { title: 'Final Fantasy IV', releaseDate: '1991-07-19', platforms: ['Super Nintendo'], coverImage: '/images/gameseries/finalfantasy.jpg' },
+      { title: 'Final Fantasy VI', releaseDate: '1994-04-02', platforms: ['Super Nintendo'], coverImage: '/images/gameseries/finalfantasy.jpg' },
+      { title: 'Final Fantasy VII', releaseDate: '1997-01-31', platforms: ['PlayStation'], coverImage: '/images/gameseries/finalfantasy.jpg' },
+      { title: 'Final Fantasy X', releaseDate: '2001-07-19', platforms: ['PlayStation 2'], coverImage: '/images/gameseries/finalfantasy.jpg' },
+      { title: 'Final Fantasy XV', releaseDate: '2016-11-29', platforms: ['PlayStation 4', 'Xbox One', 'PC'], coverImage: '/images/gameseries/finalfantasy.jpg' },
+    ],
+  },
+  {
+    slug: 'the-legend-of-zelda',
+    name: 'The Legend of Zelda',
+    aliases: ['the legend of zelda', 'legend of zelda', 'zelda'],
+    coverImage: '/images/gameseries/zelda.jpg',
+    fallbackGames: [
+      { title: 'The Legend of Zelda', releaseDate: '1986-02-21', platforms: ['Nintendo Entertainment System'], coverImage: '/images/gameseries/zelda.jpg' },
+      { title: 'Zelda II: The Adventure of Link', releaseDate: '1987-01-14', platforms: ['Nintendo Entertainment System'], coverImage: '/images/gameseries/zelda.jpg' },
+      { title: 'The Legend of Zelda: A Link to the Past', releaseDate: '1991-11-21', platforms: ['Super Nintendo'], coverImage: '/images/gameseries/zelda.jpg' },
+      { title: 'The Legend of Zelda: Ocarina of Time', releaseDate: '1998-11-21', platforms: ['Nintendo 64'], coverImage: '/images/gameseries/zelda.jpg' },
+      { title: 'The Legend of Zelda: Twilight Princess', releaseDate: '2006-11-19', platforms: ['Wii', 'GameCube'], coverImage: '/images/gameseries/zelda.jpg' },
+      { title: 'The Legend of Zelda: Breath of the Wild', releaseDate: '2017-03-03', platforms: ['Nintendo Switch', 'Wii U'], coverImage: '/images/gameseries/zelda.jpg' },
+    ],
+  },
+  {
+    slug: 'star-fox',
+    name: 'Star Fox',
+    aliases: ['star fox', 'starfox'],
+    coverImage: '/images/miniaturas/starfox.jpg',
+    fallbackGames: [
+      { title: 'Star Fox', releaseDate: '1993-02-21', platforms: ['Super Nintendo'], coverImage: '/images/miniaturas/starfox.jpg' },
+      { title: 'Star Fox 64', releaseDate: '1997-04-27', platforms: ['Nintendo 64'], coverImage: '/images/miniaturas/starfox.jpg' },
+      { title: 'Star Fox Adventures', releaseDate: '2002-09-23', platforms: ['GameCube'], coverImage: '/images/miniaturas/starfox.jpg' },
+      { title: 'Star Fox Assault', releaseDate: '2005-02-14', platforms: ['GameCube'], coverImage: '/images/miniaturas/starfox.jpg' },
+      { title: 'Star Fox Zero', releaseDate: '2016-04-21', platforms: ['Wii U'], coverImage: '/images/miniaturas/starfox.jpg' },
+    ],
+  },
+  {
+    slug: 'kirby',
+    name: 'Kirby',
+    aliases: ['kirby series', 'kirby'],
+    coverImage: '/images/gameseries/mario.jpg',
+    fallbackGames: [
+      { title: 'Kirby’s Dream Land', releaseDate: '1992-04-27', platforms: ['Game Boy'], coverImage: '/images/gameseries/mario.jpg' },
+      { title: 'Kirby Super Star', releaseDate: '1996-09-20', platforms: ['Super Nintendo'], coverImage: '/images/gameseries/mario.jpg' },
+      { title: 'Kirby 64: The Crystal Shards', releaseDate: '2000-03-24', platforms: ['Nintendo 64'], coverImage: '/images/gameseries/mario.jpg' },
+      { title: 'Kirby’s Return to Dream Land', releaseDate: '2011-10-24', platforms: ['Wii'], coverImage: '/images/gameseries/mario.jpg' },
+      { title: 'Kirby and the Forgotten Land', releaseDate: '2022-03-25', platforms: ['Nintendo Switch'], coverImage: '/images/gameseries/mario.jpg' },
+    ],
+  },
+  {
+    slug: 'donkey-kong',
+    name: 'Donkey Kong',
+    aliases: ['donkey kong', 'dk'],
+    coverImage: '/images/gameseries/mario.jpg',
+    fallbackGames: [
+      { title: 'Donkey Kong', releaseDate: '1981-07-09', platforms: ['Arcade'], coverImage: '/images/gameseries/mario.jpg' },
+      { title: 'Donkey Kong Country', releaseDate: '1994-11-21', platforms: ['Super Nintendo'], coverImage: '/images/gameseries/mario.jpg' },
+      { title: 'Donkey Kong 64', releaseDate: '1999-11-22', platforms: ['Nintendo 64'], coverImage: '/images/gameseries/mario.jpg' },
+      { title: 'Donkey Kong Country Returns', releaseDate: '2010-11-21', platforms: ['Wii'], coverImage: '/images/gameseries/mario.jpg' },
+      { title: 'Donkey Kong Country: Tropical Freeze', releaseDate: '2014-02-13', platforms: ['Wii U', 'Nintendo Switch'], coverImage: '/images/gameseries/mario.jpg' },
+    ],
+  },
+  {
+    slug: 'mega-man',
+    name: 'Mega Man',
+    aliases: ['mega man', 'megaman', 'rockman'],
+    coverImage: '/images/gameseries/metroid.jpg',
+    fallbackGames: [
+      { title: 'Mega Man', releaseDate: '1987-12-17', platforms: ['Nintendo Entertainment System'], coverImage: '/images/gameseries/metroid.jpg' },
+      { title: 'Mega Man 2', releaseDate: '1988-12-24', platforms: ['Nintendo Entertainment System'], coverImage: '/images/gameseries/metroid.jpg' },
+      { title: 'Mega Man X', releaseDate: '1993-12-17', platforms: ['Super Nintendo'], coverImage: '/images/gameseries/metroid.jpg' },
+      { title: 'Mega Man Legends', releaseDate: '1997-12-18', platforms: ['PlayStation'], coverImage: '/images/gameseries/metroid.jpg' },
+      { title: 'Mega Man 11', releaseDate: '2018-10-02', platforms: ['Nintendo Switch', 'PlayStation 4', 'Xbox One', 'PC'], coverImage: '/images/gameseries/metroid.jpg' },
+    ],
+  },
+  {
+    slug: 'castlevania',
+    name: 'Castlevania',
+    aliases: ['castlevania', 'akumajo dracula'],
+    coverImage: '/images/slider/castlevania.jpg',
+    fallbackGames: [
+      { title: 'Castlevania', releaseDate: '1986-09-26', platforms: ['Nintendo Entertainment System'], coverImage: '/images/slider/castlevania.jpg' },
+      { title: 'Castlevania III: Dracula’s Curse', releaseDate: '1989-12-22', platforms: ['Nintendo Entertainment System'], coverImage: '/images/slider/castlevania.jpg' },
+      { title: 'Castlevania: Symphony of the Night', releaseDate: '1997-03-20', platforms: ['PlayStation'], coverImage: '/images/slider/castlevania.jpg' },
+      { title: 'Castlevania: Aria of Sorrow', releaseDate: '2003-05-08', platforms: ['Game Boy Advance'], coverImage: '/images/slider/castlevania.jpg' },
+      { title: 'Castlevania: Lords of Shadow', releaseDate: '2010-10-05', platforms: ['PlayStation 3', 'Xbox 360'], coverImage: '/images/slider/castlevania.jpg' },
+    ],
+  },
 ];
 
 function slugify(value: string) {
@@ -92,13 +185,24 @@ function slugify(value: string) {
     .replace(/^-+|-+$/g, '');
 }
 
-async function ensureFranchiseData(franchiseConfig: (typeof franchiseConfigs)[number]) {
+export async function ensureFranchiseData(franchiseConfig: {
+  slug: string;
+  name: string;
+  aliases: string[];
+  coverImage: string;
+  fallbackGames: Array<{
+    title: string;
+    rawgSlug?: string;
+    releaseDate?: string | null;
+    platforms?: string[];
+    coverImage?: string | null;
+    description?: string | null;
+  }>;
+}) {
   const franchise = await prisma.franchise.upsert({
     where: { slug: franchiseConfig.slug },
     update: {
       name: franchiseConfig.name,
-      coverImage: franchiseConfig.coverImage,
-      bannerImage: franchiseConfig.coverImage,
       apiSource: 'rawg',
     },
     create: {
@@ -126,6 +230,7 @@ async function ensureFranchiseData(franchiseConfig: (typeof franchiseConfigs)[nu
 
   const blacklistedGames = await getBlacklistedGamesForFranchise(franchiseConfig.slug);
   const games = await fetchFranchiseGames(franchiseConfig);
+  let importedGames = 0;
 
   for (const game of games) {
     if (isBlacklistedGameMatch(franchiseConfig.slug, game.name ?? '', game.slug ?? '', blacklistedGames)) {
@@ -177,18 +282,16 @@ async function ensureFranchiseData(franchiseConfig: (typeof franchiseConfigs)[nu
         subcategoryId: defaultCategory.id,
       },
     });
+    importedGames += 1;
   }
+
+  return { franchiseId: franchise.id, importedGames };
 }
 
 export async function seedFranchises() {
-  await prisma.evidenceSubmission.deleteMany();
-  await prisma.userGameProgress.deleteMany();
-  await prisma.userUnlockedAvatar.deleteMany();
-  await prisma.unlockableAvatar.deleteMany();
-
   for (const franchise of franchiseConfigs) {
     await ensureFranchiseData(franchise);
   }
 
-  console.log('✅ Franchise data seeded from RAWG / fallback collection while preserving manual category overrides.');
+  console.log('✅ Franchise data seeded from RAWG / fallback collection without deleting user progress or evidence.');
 }
