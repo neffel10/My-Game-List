@@ -132,6 +132,11 @@ export async function createFranchise(formData: FormData) {
       const blacklistedGames = await getBlacklistedGamesForFranchise(config.slug);
       const rawgGames = await fetchFranchiseGames(config);
       const games = rawgGames.filter((game) => !isBlacklistedGameMatch(config.slug, game.name ?? '', game.slug ?? '', blacklistedGames));
+      console.log('[importFranchiseGames results]', {
+        franchise: name,
+        rawgMatches: rawgGames.length,
+        gamesAfterBlacklist: games.length,
+      });
       const category = await prisma.subcategory.findFirstOrThrow({
         where: { franchiseId, title: 'Mainline & Spin-offs' },
         select: { id: true },
@@ -139,7 +144,9 @@ export async function createFranchise(formData: FormData) {
 
       await prisma.importTask.update({
         where: { id: taskId },
-        data: { phase: games.length ? `Importing ${games.length} games` : 'RAWG returned no matching games', progress: 25, total: games.length },
+        data: {         phase: games.length
+          ? `Importing ${games.length} games`
+          : 'RAWG returned no matching games; check the task logs for search suggestions', progress: 25, total: games.length },
       });
 
       let importedGames = 0;

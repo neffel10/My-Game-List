@@ -58,6 +58,16 @@ function normalizeForMatch(s?: string) {
   return stripDiacritics(s).toLowerCase().replace(/[^a-z0-9]+/g, '');
 }
 
+function getSearchTerms(value: string) {
+  const normalized = normalizeForMatch(value);
+  const words = stripDiacritics(value)
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((word) => word.length > 2 && !['the', 'game', 'games', 'series'].includes(word));
+
+  return [...new Set([normalized, words.join(''), ...words].filter(Boolean))];
+}
+
 export function normalizePlatformNames(platforms?: RawgPlatform[]) {
   const platformNames = (platforms ?? [])
     .map((platform) => platform.platform?.name)
@@ -142,13 +152,21 @@ export async function fetchFranchiseGames(config: FranchiseSeedConfig) {
 
   // Build a set of search queries: franchise name, aliases and the known fallback titles
   const blacklistedGames = await getBlacklistedGamesForFranchise(config.slug);
-  const queries = [config.name, ...config.aliases, ...config.fallbackGames.map((g) => g.title)].filter(Boolean);
+  const queries = [
+    ...[config.name, ...config.aliases].flatMap((value) => getSearchTerms(value)),
+    ...config.fallbackGames.map((g) => g.title),
+  ].filter(Boolean);
   const seen = new Map<string, RawgGameResult>();
 
   for (const query of queries) {
     // Use exact search for specific game titles (the fallback list), and broader search for franchise name/aliases
     const isExact = config.fallbackGames.some((g) => g.title && g.title.toLowerCase() === query.toLowerCase());
     const results = await fetchRawgGames(query, { pageSize: 100, exact: isExact });
+    console.log('[RAWG franchise search]', {
+      franchise: config.name,
+      query,
+      resultCount: results.length,
+    });
 
     for (const result of results) {
       const slug = result.slug ?? result.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-');
@@ -161,7 +179,14 @@ export async function fetchFranchiseGames(config: FranchiseSeedConfig) {
 
   // Filter results to reduce false positives: require the game name or slug to include the franchise or an alias.
   const franchiseNorm = normalizeForMatch(config.slug);
-  const aliasesNorm = [config.name, ...config.aliases].map(normalizeForMatch).filter(Boolean);
+  const aliasesNorm = [config.name, ...config.aliases]
+    .flatMap((value) => getSearchTerms(value))
+    .filter(Boolean);
+  const franchiseTerms = [...new Set(
+    [config.name, ...config.aliases]
+      .flatMap((value) => stripDiacritics(value).toLowerCase().split(/[^a-z0-9]+/))
+      .filter((term) => term.length > 2 && !['the', 'game', 'games', 'series'].includes(term)),
+  )];
 
   const filtered: RawgGameResult[] = [];
 
@@ -178,8 +203,12 @@ export async function fetchFranchiseGames(config: FranchiseSeedConfig) {
 
     const matchesAlias = aliasesNorm.some((a) => a && (nameNorm.includes(a) || slugNorm.includes(a)));
     const matchesFranchiseSlug = franchiseNorm && slugNorm.includes(franchiseNorm);
+    const matchingTerms = franchiseTerms.filter((term) => nameNorm.includes(term) || slugNorm.includes(term));
+    const matchesRelevantTerm =
+      matchingTerms.length >= 2 ||
+      (matchingTerms.length === 1 && matchingTerms[0].length >= 6);
 
-    if (matchesAlias || matchesFranchiseSlug) {
+    if (matchesAlias || matchesFranchiseSlug || matchesRelevantTerm) {
       filtered.push(result);
       continue;
     }
@@ -265,7 +294,10 @@ export async function fetchFranchiseGames(config: FranchiseSeedConfig) {
           // Skip remakes/remasters/ports unless the result matches aliases/franchise slug exactly (rare)
           const isRemakeLike = disallowedRemakeTokens.some((d) => dNameNorm.includes(d) || dSlugNorm.includes(d) || dDescNorm.includes(d)) || tagContainsRemake;
 
-          const detailsMatch = aliasesNorm.some((a) => a && (dNameNorm.includes(a) || dSlugNorm.includes(a) || dDescNorm.includes(a)));
+          const detailsMatch =
+            aliasesNorm.some((a) => a && (dNameNorm.includes(a) || dSlugNorm.includes(a) || dDescNorm.includes(a))) ||
+            franchiseTerms.filter((term) => dNameNorm.includes(term) || dSlugNorm.includes(term) || dDescNorm.includes(term)).length >=
+              Math.min(2, franchiseTerms.length);
           if (detailsMatch || (franchiseNorm && dSlugNorm.includes(franchiseNorm))) {
             if (isRemakeLike) {
               // prefer to skip remakes/ports/re-releases
@@ -282,6 +314,12 @@ export async function fetchFranchiseGames(config: FranchiseSeedConfig) {
 
   // For results missing release info, try to fetch full game details to get accurate release dates
   const enriched: RawgGameResult[] = [];
+
+  console.log('[RAWG franchise match]', {
+    franchise: config.name,
+    candidateCount: seen.size,
+    matchedCount: filtered.length,
+  });
 
   for (const r of filtered) {
     let res = r;
