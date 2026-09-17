@@ -3,9 +3,11 @@
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { uploadImageToBlob } from '@/lib/blob-upload';
-import { ensureFranchiseData } from '@/lib/seed-franchises';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { after } from 'next/server';
+import { fetchFranchiseGames, normalizePlatformNames, normalizeReleaseDate, normalizeReleaseYear } from '@/lib/rawg';
+import { getBlacklistedGamesForFranchise, isBlacklistedGameMatch } from '@/lib/game-blacklist';
 
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? process.env.ADMIN_EMAIL ?? 'admin@mygamelist.local')
   .split(',')
@@ -68,37 +70,133 @@ export async function createFranchise(formData: FormData) {
 
     const existingFranchise = await prisma.franchise.findUnique({
       where: { slug },
-      select: { id: true },
+      select: { id: true, coverImage: true },
     });
 
     if (existingFranchise) {
-      console.warn('[createFranchise duplicate]', { name, slug });
-      redirect(`/admin/content?error=duplicate-franchise&name=${encodeURIComponent(name)}`);
+      const task = await prisma.importTask.create({
+        data: {
+          type: 'FRANCHISE_GAMES_RETRY',
+          franchiseId: existingFranchise.id,
+          franchiseName: name,
+          status: 'PENDING',
+          phase: 'Queued for retry',
+        },
+      });
+      after(() => importFranchiseGames(task.id, existingFranchise.id, name, existingFranchise.coverImage));
+      redirect(`/admin/content?task=${task.id}&retry=${encodeURIComponent(name)}`);
     }
 
     const imageUrl = await uploadImageToBlob(imageFile, 'franchise-banners', MAX_IMAGE_SIZE);
-    const result = await ensureFranchiseData({
-      slug,
-      name,
-      aliases: [name],
-      coverImage: imageUrl,
-      fallbackGames: [],
+    const franchise = await prisma.franchise.create({
+      data: {
+        name,
+        slug,
+        coverImage: imageUrl,
+        bannerImage: imageUrl,
+        apiSource: 'rawg',
+        categories: {
+          create: { title: 'Mainline & Spin-offs', orderIndex: 0 },
+        },
+      },
     });
+    const task = await prisma.importTask.create({
+      data: {
+        type: 'FRANCHISE_GAMES',
+        franchiseId: franchise.id,
+        franchiseName: name,
+        status: 'PENDING',
+        phase: 'Queued',
+      },
+    });
+
+    after(() => importFranchiseGames(task.id, franchise.id, name, imageUrl));
 
     revalidatePath('/');
     revalidatePath('/franchises');
     revalidatePath('/admin/content');
-    revalidatePath(`/franchises/${slug}`);
-
-    console.log('[createFranchise success]', {
-      name,
-      slug,
-      importedGames: result.importedGames,
-    });
-    redirect(`/admin/content?imported=${encodeURIComponent(slug)}&games=${result.importedGames}`);
+    redirect(`/admin/content?task=${task.id}`);
   } catch (error) {
     console.error('[createFranchise failed]', error);
     throw error;
+  }
+
+  async function importFranchiseGames(taskId: string, franchiseId: string, name: string, coverImage: string) {
+    try {
+      await prisma.importTask.update({
+        where: { id: taskId },
+        data: { status: 'RUNNING', phase: 'Querying RAWG', progress: 10 },
+      });
+
+      const config = { slug: slugify(name), name, aliases: [name], coverImage, fallbackGames: [] };
+      const blacklistedGames = await getBlacklistedGamesForFranchise(config.slug);
+      const rawgGames = await fetchFranchiseGames(config);
+      const games = rawgGames.filter((game) => !isBlacklistedGameMatch(config.slug, game.name ?? '', game.slug ?? '', blacklistedGames));
+      const category = await prisma.subcategory.findFirstOrThrow({
+        where: { franchiseId, title: 'Mainline & Spin-offs' },
+        select: { id: true },
+      });
+
+      await prisma.importTask.update({
+        where: { id: taskId },
+        data: { phase: games.length ? `Importing ${games.length} games` : 'RAWG returned no matching games', progress: 25, total: games.length },
+      });
+
+      let importedGames = 0;
+      for (const game of games) {
+        const title = game.name ?? 'Untitled Game';
+        const releaseDate = normalizeReleaseDate(game.released ?? null);
+        const year = normalizeReleaseYear(game.released ?? null) ?? 0;
+        const rawgSlug = game.slug ?? `${config.slug}-${slugify(title)}`;
+        const existing = await prisma.game.findUnique({ where: { rawgSlug }, select: { id: true, manualCategoryOverride: true } });
+        await prisma.game.upsert({
+          where: { rawgSlug },
+          update: {
+            title,
+            year,
+            coverImage: game.background_image ?? coverImage,
+            releaseDate,
+            platforms: normalizePlatformNames(game.platforms),
+            description: game.description_raw ?? null,
+            ...(existing?.manualCategoryOverride ? {} : { subcategoryId: category.id }),
+          },
+          create: {
+            title,
+            year,
+            rawgSlug,
+            coverImage: game.background_image ?? coverImage,
+            releaseDate,
+            platforms: normalizePlatformNames(game.platforms),
+            description: game.description_raw ?? null,
+            subcategoryId: category.id,
+          },
+        });
+        importedGames += 1;
+        await prisma.importTask.update({
+          where: { id: taskId },
+          data: { progress: 25 + Math.round((importedGames / Math.max(games.length, 1)) * 75), importedGames },
+        });
+      }
+
+      await prisma.importTask.update({
+        where: { id: taskId },
+        data: {
+          status: 'COMPLETED',
+          phase: importedGames ? 'Completed' : 'Completed with no matching RAWG games',
+          progress: 100,
+        },
+      });
+      revalidatePath('/');
+      revalidatePath('/franchises');
+      revalidatePath(`/franchises/${config.slug}`);
+      revalidatePath('/admin/content');
+    } catch (error) {
+      console.error('[importFranchiseGames failed]', error);
+      await prisma.importTask.update({
+        where: { id: taskId },
+        data: { status: 'FAILED', phase: 'Import failed', error: error instanceof Error ? error.message : String(error) },
+      });
+    }
   }
 }
 

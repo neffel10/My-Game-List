@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { ImageIcon, Gift, Sparkles, ArrowLeft, Plus } from 'lucide-react';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import ImportTaskProgress from '@/components/admin/ImportTaskProgress';
 import {
   saveFeaturedFanArt,
   saveFranchiseFanArt,
@@ -26,6 +27,8 @@ interface AdminContentPageProps {
     name?: string;
     imported?: string;
     games?: string;
+    task?: string;
+    retry?: string;
   }>;
 }
 
@@ -40,7 +43,7 @@ export default async function AdminContentPage({ searchParams }: AdminContentPag
     redirect('/');
   }
 
-  const [franchises, featuredArt, submissions, rewards] = await Promise.all([
+  const [franchises, featuredArt, submissions, rewards, importTasks] = await Promise.all([
     prisma.franchise.findMany({
       orderBy: { name: 'asc' },
     }),
@@ -57,6 +60,10 @@ export default async function AdminContentPage({ searchParams }: AdminContentPag
     prisma.reward.findMany({
       where: { isActive: true },
       orderBy: { pointsRequired: 'asc' },
+    }),
+    prisma.importTask.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 5,
     }),
   ]);
 
@@ -101,6 +108,12 @@ export default async function AdminContentPage({ searchParams }: AdminContentPag
         </div>
 
         <div className="space-y-8">
+          {params.task && <ImportTaskProgress taskId={params.task} />}
+          {params.retry && (
+            <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+              {params.retry} already existed, so its RAWG import was queued again instead of creating a duplicate franchise.
+            </div>
+          )}
           {params.error === 'duplicate-franchise' && (
             <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
               The franchise <strong>{params.name ?? 'you entered'}</strong> already exists. Use a different name or manage it from the existing franchise pages.
@@ -125,6 +138,17 @@ export default async function AdminContentPage({ searchParams }: AdminContentPag
             <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
               Imported <strong>{params.imported}</strong> successfully with {params.games ?? '0'} games.
             </div>
+          )}
+          {importTasks.length > 0 && (
+            <section className="rounded-2xl border border-white/10 bg-zinc-900/70 p-5 shadow-2xl">
+              <div className="mb-4">
+                <h2 className="text-xl font-bold text-white">Import tasks</h2>
+                <p className="mt-1 text-sm text-zinc-400">Tasks are saved in the database and continue updating if you leave and return to this panel.</p>
+              </div>
+              <div className="space-y-3">
+                {importTasks.map((task) => <ImportTaskProgress key={task.id} taskId={task.id} />)}
+              </div>
+            </section>
           )}
 
           <section className="rounded-2xl border border-white/10 bg-zinc-900/70 p-5 shadow-2xl">

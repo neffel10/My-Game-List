@@ -164,6 +164,23 @@ model Reward {
   @@index([isActive])
 }
 
+model ImportTask {
+  id            String    @id @default(cuid())
+  type          String
+  franchiseId   String?
+  franchiseName String
+  status        String    @default("PENDING")
+  phase         String    @default("Queued")
+  progress      Int       @default(0)
+  total         Int       @default(0)
+  importedGames Int       @default(0)
+  error         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([status, createdAt])
+}
+
 // Modelos estándar requeridos por NextAuth
 model Account {
   id                String  @id @default(cuid())
