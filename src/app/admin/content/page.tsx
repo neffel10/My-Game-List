@@ -20,9 +20,19 @@ const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? process.env.ADMIN_EMAIL ?? 'ad
 
 const ADMIN_BYPASS_ENABLED = (process.env.ADMIN_BYPASS ?? 'true').toLowerCase() === 'true';
 
-export default async function AdminContentPage() {
+interface AdminContentPageProps {
+  searchParams: Promise<{
+    error?: string;
+    name?: string;
+    imported?: string;
+    games?: string;
+  }>;
+}
+
+export default async function AdminContentPage({ searchParams }: AdminContentPageProps) {
   const session = await auth();
   const userEmail = session?.user?.email?.toLowerCase();
+  const params = await searchParams;
 
   const isAdmin = ADMIN_BYPASS_ENABLED || (!!session?.user && !!userEmail && ADMIN_EMAILS.includes(userEmail));
 
@@ -91,6 +101,32 @@ export default async function AdminContentPage() {
         </div>
 
         <div className="space-y-8">
+          {params.error === 'duplicate-franchise' && (
+            <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+              The franchise <strong>{params.name ?? 'you entered'}</strong> already exists. Use a different name or manage it from the existing franchise pages.
+            </div>
+          )}
+          {params.error === 'rawg-config' && (
+            <div className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+              RAWG is not configured in this deployment. Add <code>RAWG_API_KEY</code> to the Production environment and redeploy.
+            </div>
+          )}
+          {params.error === 'franchise-input' && (
+            <div className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+              Enter a franchise name and select a banner image before importing.
+            </div>
+          )}
+          {params.error === 'invalid-franchise-name' && (
+            <div className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+              The franchise name could not be converted into a valid URL.
+            </div>
+          )}
+          {params.imported && (
+            <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+              Imported <strong>{params.imported}</strong> successfully with {params.games ?? '0'} games.
+            </div>
+          )}
+
           <section className="rounded-2xl border border-white/10 bg-zinc-900/70 p-5 shadow-2xl">
             <div className="mb-4 flex items-center gap-2">
               <Plus className="h-5 w-5 text-cyan-300" />

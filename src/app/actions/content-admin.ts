@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { uploadImageToBlob } from '@/lib/blob-upload';
 import { ensureFranchiseData } from '@/lib/seed-franchises';
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? process.env.ADMIN_EMAIL ?? 'admin@mygamelist.local')
   .split(',')
@@ -48,16 +49,21 @@ export async function createFranchise(formData: FormData) {
     const imageFile = formData.get('image');
 
     if (name.length < 2 || name.length > 80 || !(imageFile instanceof File)) {
-      throw new Error('A franchise name and banner image are required.');
+      console.error('[createFranchise validation failed]', {
+        nameLength: name.length,
+        hasImage: imageFile instanceof File,
+      });
+      redirect('/admin/content?error=franchise-input');
     }
 
     if (!process.env.RAWG_API_KEY) {
-      throw new Error('RAWG_API_KEY is not configured. Add it before importing a franchise.');
+      console.error('[createFranchise configuration failed] RAWG_API_KEY is missing.');
+      redirect('/admin/content?error=rawg-config');
     }
 
     const slug = slugify(name);
     if (!slug) {
-      throw new Error('The franchise name could not be converted into a valid URL slug.');
+      redirect('/admin/content?error=invalid-franchise-name');
     }
 
     const existingFranchise = await prisma.franchise.findUnique({
@@ -66,7 +72,8 @@ export async function createFranchise(formData: FormData) {
     });
 
     if (existingFranchise) {
-      throw new Error(`The franchise "${name}" already exists.`);
+      console.warn('[createFranchise duplicate]', { name, slug });
+      redirect(`/admin/content?error=duplicate-franchise&name=${encodeURIComponent(name)}`);
     }
 
     const imageUrl = await uploadImageToBlob(imageFile, 'franchise-banners', MAX_IMAGE_SIZE);
@@ -88,6 +95,7 @@ export async function createFranchise(formData: FormData) {
       slug,
       importedGames: result.importedGames,
     });
+    redirect(`/admin/content?imported=${encodeURIComponent(slug)}&games=${result.importedGames}`);
   } catch (error) {
     console.error('[createFranchise failed]', error);
     throw error;
