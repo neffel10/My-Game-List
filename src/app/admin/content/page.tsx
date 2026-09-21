@@ -43,7 +43,7 @@ export default async function AdminContentPage({ searchParams }: AdminContentPag
     redirect('/');
   }
 
-  const [franchises, featuredArt, submissions, rewards, importTasks] = await Promise.all([
+  const [franchises, featuredArt, submissions, rewards, activeImportTasks, completedImportTasks] = await Promise.all([
     prisma.franchise.findMany({
       orderBy: { name: 'asc' },
     }),
@@ -62,8 +62,14 @@ export default async function AdminContentPage({ searchParams }: AdminContentPag
       orderBy: { pointsRequired: 'asc' },
     }),
     prisma.importTask.findMany({
+      where: { status: { in: ['PENDING', 'RUNNING', 'FAILED'] } },
       orderBy: { createdAt: 'desc' },
-      take: 5,
+      take: 10,
+    }),
+    prisma.importTask.findMany({
+      where: { status: 'COMPLETED' },
+      orderBy: { updatedAt: 'desc' },
+      take: 50,
     }),
   ]);
 
@@ -139,16 +145,27 @@ export default async function AdminContentPage({ searchParams }: AdminContentPag
               Imported <strong>{params.imported}</strong> successfully with {params.games ?? '0'} games.
             </div>
           )}
-          {importTasks.length > 0 && (
+          {activeImportTasks.length > 0 && (
             <section className="rounded-2xl border border-white/10 bg-zinc-900/70 p-5 shadow-2xl">
               <div className="mb-4">
-                <h2 className="text-xl font-bold text-white">Import tasks</h2>
+                <h2 className="text-xl font-bold text-white">Active import tasks</h2>
                 <p className="mt-1 text-sm text-zinc-400">Tasks are saved in the database and continue updating if you leave and return to this panel.</p>
               </div>
               <div className="space-y-3">
-                {importTasks.map((task) => <ImportTaskProgress key={task.id} taskId={task.id} />)}
+                {activeImportTasks.map((task) => <ImportTaskProgress key={task.id} taskId={task.id} />)}
               </div>
             </section>
+          )}
+          {completedImportTasks.length > 0 && (
+            <details className="rounded-2xl border border-white/10 bg-zinc-900/50 p-5">
+              <summary className="cursor-pointer list-none text-xl font-bold text-white">
+                Completed import history ({completedImportTasks.length})
+              </summary>
+              <p className="mt-1 text-sm text-zinc-400">Completed tasks are kept here so the active task area stays uncluttered.</p>
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                {completedImportTasks.map((task) => <ImportTaskProgress key={task.id} taskId={task.id} />)}
+              </div>
+            </details>
           )}
 
           <section className="rounded-2xl border border-white/10 bg-zinc-900/70 p-5 shadow-2xl">
@@ -181,10 +198,15 @@ export default async function AdminContentPage({ searchParams }: AdminContentPag
                   type="file"
                   name="image"
                   accept="image/*"
-                  required
                   className="rounded-xl border border-dashed border-white/15 bg-black/20 px-3 py-2.5 text-zinc-300 file:mr-3 file:rounded-md file:border-0 file:bg-cyan-500/15 file:px-3 file:py-2 file:text-cyan-200"
                 />
-                <span className="text-xs text-zinc-500">Maximum size: 3MB.</span>
+                <span className="text-xs text-zinc-500">Maximum size: 3MB. You can use a URL below instead.</span>
+              </label>
+
+              <label className="flex flex-col gap-2 text-sm text-zinc-300">
+                Banner image URL
+                <input name="imageUrl" type="url" placeholder="https://example.com/banner.jpg" className="rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-white outline-none focus:border-cyan-400" />
+                <span className="text-xs text-zinc-500">The image is downloaded and stored in Vercel Blob.</span>
               </label>
 
               <div className="md:col-span-2 flex justify-end">

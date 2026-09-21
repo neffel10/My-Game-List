@@ -2,7 +2,7 @@
 
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
-import { uploadImageToBlob } from '@/lib/blob-upload';
+import { uploadImageToBlob, uploadImageUrlToBlob } from '@/lib/blob-upload';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { after } from 'next/server';
@@ -49,11 +49,12 @@ export async function createFranchise(formData: FormData) {
 
     const name = String(formData.get('name') ?? '').trim();
     const imageFile = formData.get('image');
+    const imageUrl = String(formData.get('imageUrl') ?? '').trim();
 
-    if (name.length < 2 || name.length > 80 || !(imageFile instanceof File)) {
+    if (name.length < 2 || name.length > 80 || (!(imageFile instanceof File) && !imageUrl)) {
       console.error('[createFranchise validation failed]', {
         nameLength: name.length,
-        hasImage: imageFile instanceof File,
+        hasImage: imageFile instanceof File || Boolean(imageUrl),
       });
       redirect('/admin/content?error=franchise-input');
     }
@@ -87,13 +88,15 @@ export async function createFranchise(formData: FormData) {
       redirect(`/admin/content?task=${task.id}&retry=${encodeURIComponent(name)}`);
     }
 
-    const imageUrl = await uploadImageToBlob(imageFile, 'franchise-banners', MAX_IMAGE_SIZE);
+    const storedImageUrl = imageFile instanceof File
+      ? await uploadImageToBlob(imageFile, 'franchise-banners', MAX_IMAGE_SIZE)
+      : await uploadImageUrlToBlob(imageUrl, 'franchise-banners', MAX_IMAGE_SIZE);
     const franchise = await prisma.franchise.create({
       data: {
         name,
         slug,
-        coverImage: imageUrl,
-        bannerImage: imageUrl,
+        coverImage: storedImageUrl,
+        bannerImage: storedImageUrl,
         apiSource: 'rawg',
         categories: {
           create: { title: 'Mainline & Spin-offs', orderIndex: 0 },
@@ -110,7 +113,7 @@ export async function createFranchise(formData: FormData) {
       },
     });
 
-    after(() => importFranchiseGames(task.id, franchise.id, name, imageUrl));
+    after(() => importFranchiseGames(task.id, franchise.id, name, storedImageUrl));
 
     revalidatePath('/');
     revalidatePath('/franchises');
@@ -120,6 +123,34 @@ export async function createFranchise(formData: FormData) {
     console.error('[createFranchise failed]', error);
     throw error;
   }
+}
+
+export async function updateFranchiseBanner(formData: FormData) {
+  await requireAdmin();
+
+  const franchiseId = String(formData.get('franchiseId') ?? '').trim();
+  const imageFile = formData.get('image');
+  const imageUrl = String(formData.get('imageUrl') ?? '').trim();
+
+  if (!franchiseId || (!(imageFile instanceof File) && !imageUrl)) {
+    throw new Error('Select an image file or provide an image URL.');
+  }
+
+  const storedImageUrl = imageFile instanceof File
+    ? await uploadImageToBlob(imageFile, 'franchise-banners', MAX_IMAGE_SIZE)
+    : await uploadImageUrlToBlob(imageUrl, 'franchise-banners', MAX_IMAGE_SIZE);
+
+  const franchise = await prisma.franchise.update({
+    where: { id: franchiseId },
+    data: { coverImage: storedImageUrl, bannerImage: storedImageUrl },
+    select: { slug: true },
+  });
+
+  revalidatePath(`/franchises/${franchise.slug}`);
+  revalidatePath('/franchises');
+  revalidatePath('/');
+  revalidatePath('/admin/content');
+}
 
   async function importFranchiseGames(taskId: string, franchiseId: string, name: string, coverImage: string) {
     try {
@@ -205,7 +236,6 @@ export async function createFranchise(formData: FormData) {
       });
     }
   }
-}
 
 export async function saveFeaturedFanArt(formData: FormData) {
   try {

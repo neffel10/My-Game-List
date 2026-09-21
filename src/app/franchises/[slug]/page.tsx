@@ -7,6 +7,7 @@ const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? process.env.ADMIN_EMAIL ?? 'ad
   .split(',')
   .map((email) => email.trim().toLowerCase())
   .filter(Boolean);
+const ADMIN_BYPASS_ENABLED = (process.env.ADMIN_BYPASS ?? 'true').toLowerCase() === 'true';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -16,7 +17,7 @@ export default async function FranchisePage({ params }: PageProps) {
   const { slug } = await params;
   const session = await auth();
   const userId = session?.user?.id;
-  const isAdmin = !!session?.user?.email && ADMIN_EMAILS.includes(session.user.email.toLowerCase());
+  const isAdmin = ADMIN_BYPASS_ENABLED || (!!session?.user?.email && ADMIN_EMAILS.includes(session.user.email.toLowerCase()));
 
   // 1. Obtener la franquicia con categorías, juegos y evidencias
   const franchise = await prisma.franchise.findUnique({
@@ -89,6 +90,7 @@ export default async function FranchisePage({ params }: PageProps) {
       coverArtistName={coverArtistName}
       franchiseSlug={franchise.slug}
       isAdmin={isAdmin}
+      franchiseId={franchise.id}
       initialCategories={initialCategories}
     />
   );

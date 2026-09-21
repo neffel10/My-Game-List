@@ -6,7 +6,8 @@ import Navbar from '@/components/layout/Navbar';
 import CelebrationOverlay, { CelebrationType } from '@/components/franchise/CelebrationOverlay';
 import { toggleUserGameProgress } from '@/app/actions/progress';
 import { uploadEvidence } from '@/app/actions/evidence';
-import { createFranchiseSubcategory, deleteSelectedGames, updateGameCategory } from '@/app/actions/game-admin';
+import { createFranchiseSubcategory, deleteSelectedGames, importFranchiseGamesCsv, updateGameCategory } from '@/app/actions/game-admin';
+import { updateFranchiseBanner } from '@/app/actions/content-admin';
 import {
   UploadCloud,
   ChevronUp,
@@ -40,6 +41,7 @@ interface FranchiseChecklistViewProps {
   coverImage: string;
   coverArtistName?: string | null;
   franchiseSlug: string;
+  franchiseId: string;
   isAdmin: boolean;
   initialCategories: ClientCategory[];
 }
@@ -49,6 +51,7 @@ export default function FranchiseChecklistView({
   coverImage,
   coverArtistName,
   franchiseSlug,
+  franchiseId,
   isAdmin,
   initialCategories,
 }: FranchiseChecklistViewProps) {
@@ -360,6 +363,17 @@ export default function FranchiseChecklistView({
         <div className="absolute inset-0 bg-gradient-to-t from-[#07090e] via-[#07090e]/60 to-transparent" />
 
         <div className="relative mx-auto flex h-full max-w-7xl flex-col justify-end px-4 pb-8 sm:px-6 lg:px-8">
+          {isAdmin && (
+            <form action={updateFranchiseBanner} encType="multipart/form-data" className="absolute left-4 top-4 z-20 rounded-xl border border-cyan-400/20 bg-black/70 p-3 backdrop-blur sm:left-6 lg:left-8">
+              <input type="hidden" name="franchiseId" value={franchiseId} />
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-cyan-100">Admin banner editor</div>
+              <div className="flex flex-wrap gap-2">
+                <input name="imageUrl" type="url" placeholder="https://image-url" className="w-48 rounded-lg border border-white/10 bg-black/50 px-2 py-1.5 text-xs text-white" />
+                <input name="image" type="file" accept="image/*" className="w-52 rounded-lg border border-dashed border-white/10 bg-black/50 px-2 py-1.5 text-xs text-zinc-300" />
+                <button type="submit" className="rounded-lg bg-cyan-500/20 px-3 py-1.5 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/30">Update</button>
+              </div>
+            </form>
+          )}
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
@@ -391,6 +405,20 @@ export default function FranchiseChecklistView({
               </div>
             </div>
           </div>
+          {isAdmin && (
+            <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
+              <a href={`/api/admin/franchises/${franchiseSlug}/games/export`} className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 font-semibold text-emerald-100 hover:bg-emerald-500/20">
+                Export games CSV
+              </a>
+              <form action={importFranchiseGamesCsv} encType="multipart/form-data" className="flex flex-wrap items-center gap-2">
+                <input type="hidden" name="franchiseSlug" value={franchiseSlug} />
+                <input name="file" type="file" accept=".csv,text/csv" required className="max-w-56 rounded-lg border border-white/10 bg-black/40 px-2 py-1.5 text-zinc-300" />
+                <button type="submit" className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 font-semibold text-amber-100 hover:bg-amber-500/20">
+                  Import games CSV
+                </button>
+              </form>
+            </div>
+          )}
         </div>
       </section>
 

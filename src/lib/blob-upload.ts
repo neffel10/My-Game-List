@@ -65,3 +65,29 @@ export async function uploadImageToBlob(file: File, folder: string, maxBytes = D
     throw error;
   }
 }
+
+export async function uploadImageUrlToBlob(url: string, folder: string, maxBytes = DEFAULT_IMAGE_MAX_BYTES) {
+  const normalizedUrl = url.trim();
+  if (!/^https?:\/\//i.test(normalizedUrl)) {
+    throw new Error('Please provide a valid public http(s) image URL.');
+  }
+
+  const response = await fetch(normalizedUrl, { redirect: 'follow', cache: 'no-store' });
+  if (!response.ok) {
+    throw new Error(`The image URL could not be downloaded (${response.status}).`);
+  }
+
+  const contentType = response.headers.get('content-type')?.split(';')[0].trim() ?? '';
+  if (!contentType.startsWith('image/')) {
+    throw new Error('The provided URL does not point to an image.');
+  }
+
+  const buffer = await response.arrayBuffer();
+  if (buffer.byteLength > maxBytes) {
+    throw new Error(`The image is too large. Please use an image smaller than ${Math.round(maxBytes / (1024 * 1024))}MB.`);
+  }
+
+  const extension = contentType.split('/')[1]?.replace(/[^a-z0-9]/gi, '') || 'jpg';
+  const file = new File([buffer], `remote-banner.${extension}`, { type: contentType });
+  return uploadImageToBlob(file, folder, maxBytes);
+}

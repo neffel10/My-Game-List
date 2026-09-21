@@ -165,9 +165,10 @@ export async function fetchFranchiseGames(config: FranchiseSeedConfig) {
   // Build a set of search queries: franchise name, aliases and the known fallback titles
   const blacklistedGames = await getBlacklistedGamesForFranchise(config.slug);
   const queries = [
+    ...[config.name, ...config.aliases],
     ...[config.name, ...config.aliases].flatMap((value) => getSearchTerms(value)),
     ...config.fallbackGames.map((g) => g.title),
-  ].filter(Boolean);
+  ].filter((query, index, values): query is string => Boolean(query) && values.indexOf(query) === index);
   const seen = new Map<string, RawgGameResult>();
 
   for (const query of queries) {
@@ -227,6 +228,8 @@ export async function fetchFranchiseGames(config: FranchiseSeedConfig) {
     const exactCanonical = canonicalTitles.some((game) => game.normalized === nameNorm || game.normalized === slugNorm);
     const matchingAliases = aliasesNorm.filter((alias) => nameNorm.includes(alias) || slugNorm.includes(alias));
     const matchingTokens = franchiseTokens.filter((token) => titleTokens.includes(token));
+    const coreTokenMatches = franchiseTokens.filter((token) => token.length >= 5 && titleTokens.includes(token));
+    const startsWithCoreToken = coreTokenMatches.some((token) => titleTokens[0] === token);
     const phraseMatch = [config.name, ...config.aliases].some((alias) => {
       const phrase = stripDiacritics(alias).toLowerCase().trim();
       return phrase.length > 3 && new RegExp(`^${escapeRegExp(phrase)}(?:\\s|:|-|$)`, 'i').test(stripDiacritics(title).toLowerCase());
@@ -248,6 +251,10 @@ export async function fetchFranchiseGames(config: FranchiseSeedConfig) {
       score += 15;
       reasons.push('multipleFranchiseTokens');
     }
+    if (startsWithCoreToken && matchingTokens.length === 1) {
+      score += 25;
+      reasons.push('startsWithCoreFranchiseToken');
+    }
     if (/\b(?:[0-9]+|i{1,3}|iv|v|vi|vii|viii|ix|x)\b/i.test(title)) {
       score += 15;
       reasons.push('numberedInstallment');
@@ -267,7 +274,7 @@ export async function fetchFranchiseGames(config: FranchiseSeedConfig) {
 
     // A single generic keyword is not enough. This is what previously admitted
     // titles such as "Great Witcher" into the franchise.
-    const hasStrongTextMatch = exactCanonical || phraseMatch || hasFranchiseInSlug;
+    const hasStrongTextMatch = exactCanonical || phraseMatch || hasFranchiseInSlug || startsWithCoreToken;
     if (!hasStrongTextMatch && matchingTokens.length < 2) continue;
     if (score < 35) continue;
 
