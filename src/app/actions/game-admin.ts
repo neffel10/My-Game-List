@@ -216,6 +216,89 @@ export async function updateGameCategory(formData: FormData) {
   return { success: true, title: targetCategory.title };
 }
 
+async function requireGameAdmin() {
+  const session = await auth();
+  const email = session?.user?.email;
+  if (!ADMIN_BYPASS_ENABLED && (!session?.user || !email || !isAdminEmail(email))) {
+    throw new Error('This action is restricted to administrators.');
+  }
+}
+
+function parsePlatforms(value: string) {
+  return value.split('|').map((platform) => platform.trim()).filter(Boolean);
+}
+
+export async function createManualGame(formData: FormData) {
+  await requireGameAdmin();
+
+  const franchiseSlug = String(formData.get('franchiseSlug') ?? '').trim();
+  const subcategoryId = String(formData.get('subcategoryId') ?? '').trim();
+  const title = String(formData.get('title') ?? '').trim();
+  const year = Number.parseInt(String(formData.get('year') ?? ''), 10);
+
+  if (!franchiseSlug || !subcategoryId || !title || Number.isNaN(year)) {
+    throw new Error('A title, year, category and franchise are required.');
+  }
+
+  const category = await prisma.subcategory.findFirst({
+    where: { id: subcategoryId, franchise: { slug: franchiseSlug } },
+  });
+  if (!category) throw new Error('The selected category does not belong to this franchise.');
+
+  await prisma.game.create({
+    data: {
+      title,
+      year,
+      rawgSlug: String(formData.get('rawgSlug') ?? '').trim() || null,
+      releaseDate: String(formData.get('releaseDate') ?? '').trim()
+        ? new Date(String(formData.get('releaseDate')))
+        : null,
+      platforms: parsePlatforms(String(formData.get('platforms') ?? '')),
+      description: String(formData.get('description') ?? '').trim() || null,
+      subcategoryId: category.id,
+    },
+  });
+
+  revalidatePath(`/franchises/${franchiseSlug}`);
+  revalidatePath('/franchises');
+  revalidatePath('/');
+}
+
+export async function updateManualGame(formData: FormData) {
+  await requireGameAdmin();
+
+  const gameId = String(formData.get('gameId') ?? '').trim();
+  const franchiseSlug = String(formData.get('franchiseSlug') ?? '').trim();
+  const title = String(formData.get('title') ?? '').trim();
+  const year = Number.parseInt(String(formData.get('year') ?? ''), 10);
+  if (!gameId || !franchiseSlug || !title || Number.isNaN(year)) {
+    throw new Error('A title, year and game are required.');
+  }
+
+  const game = await prisma.game.findFirst({
+    where: { id: gameId, subcategory: { franchise: { slug: franchiseSlug } } },
+  });
+  if (!game) throw new Error('Game not found in this franchise.');
+
+  await prisma.game.update({
+    where: { id: game.id },
+    data: {
+      title,
+      year,
+      rawgSlug: String(formData.get('rawgSlug') ?? '').trim() || null,
+      releaseDate: String(formData.get('releaseDate') ?? '').trim()
+        ? new Date(String(formData.get('releaseDate')))
+        : null,
+      platforms: parsePlatforms(String(formData.get('platforms') ?? '')),
+      description: String(formData.get('description') ?? '').trim() || null,
+    },
+  });
+
+  revalidatePath(`/franchises/${franchiseSlug}`);
+  revalidatePath('/franchises');
+  revalidatePath('/');
+}
+
 function parseCsvLine(line: string) {
   const values: string[] = [];
   let value = '';

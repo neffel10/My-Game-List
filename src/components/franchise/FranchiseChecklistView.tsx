@@ -6,7 +6,7 @@ import Navbar from '@/components/layout/Navbar';
 import CelebrationOverlay, { CelebrationType } from '@/components/franchise/CelebrationOverlay';
 import { toggleUserGameProgress } from '@/app/actions/progress';
 import { uploadEvidence } from '@/app/actions/evidence';
-import { createFranchiseSubcategory, deleteSelectedGames, importFranchiseGamesCsv, updateGameCategory } from '@/app/actions/game-admin';
+import { createFranchiseSubcategory, createManualGame, deleteSelectedGames, importFranchiseGamesCsv, updateGameCategory, updateManualGame } from '@/app/actions/game-admin';
 import { updateFranchiseBanner } from '@/app/actions/content-admin';
 import {
   UploadCloud,
@@ -23,6 +23,7 @@ export interface ClientGame {
   id: string;
   title: string;
   year: number;
+  rawgSlug?: string | null;
   platforms?: string[];
   completed: boolean;
   mastered: boolean;
@@ -65,6 +66,8 @@ export default function FranchiseChecklistView({
   const [deletingGames, setDeletingGames] = useState(false);
   const [newCategoryTitle, setNewCategoryTitle] = useState('');
   const [creatingCategory, setCreatingCategory] = useState(false);
+  const [showAddGameForm, setShowAddGameForm] = useState(false);
+  const [editingGameId, setEditingGameId] = useState<string | null>(null);
   const [celebration, setCelebration] = useState<{
     type: CelebrationType;
     gameTitle: string;
@@ -80,6 +83,12 @@ export default function FranchiseChecklistView({
     setSelectedGameIds((prev) =>
       prev.includes(gameId) ? prev.filter((id) => id !== gameId) : [...prev, gameId]
     );
+  };
+
+  const toggleSelectAllVisible = () => {
+    setSelectedGameIds((previous) => allVisibleSelected
+      ? previous.filter((id) => !allVisibleGameIds.includes(id))
+      : [...new Set([...previous, ...allVisibleGameIds])]);
   };
 
   const handleDeleteSelectedGames = async () => {
@@ -334,6 +343,10 @@ export default function FranchiseChecklistView({
   };
 
   const allGames = categories.flatMap((c) => c.games);
+  const allVisibleGameIds = categories.flatMap((category) => category.games
+    .filter((game) => filter === 'all' || (filter === 'completed' ? game.completed : !game.completed))
+    .map((game) => game.id));
+  const allVisibleSelected = allVisibleGameIds.length > 0 && allVisibleGameIds.every((id) => selectedGameIds.includes(id));
   const totalGames = allGames.length;
   const masteredCount = allGames.filter((g) => g.mastered).length;
   const completedOnlyCount = allGames.filter((g) => g.completed && !g.mastered).length;
@@ -458,6 +471,22 @@ export default function FranchiseChecklistView({
 
               {isAdmin && (
                 <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={toggleSelectAllVisible}
+                    disabled={allVisibleGameIds.length === 0}
+                    className="inline-flex items-center gap-2 rounded-lg border border-[#FED140]/40 bg-[#FED140]/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-[#FED140] transition hover:bg-[#FED140]/20 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <input type="checkbox" readOnly checked={allVisibleSelected} className="h-3.5 w-3.5 accent-[#FED140]" />
+                    {allVisibleSelected ? 'Unselect all' : 'Select all'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddGameForm((visible) => !visible)}
+                    className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-emerald-200 transition hover:bg-emerald-500/20"
+                  >
+                    {showAddGameForm ? 'Close add game' : '+ Add game'}
+                  </button>
                   <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] p-1.5">
                     <input
                       value={newCategoryTitle}
@@ -490,6 +519,33 @@ export default function FranchiseChecklistView({
               <div className="rounded-xl border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-200">
                 {deleteError}
               </div>
+            )}
+
+            {isAdmin && showAddGameForm && (
+              <form action={createManualGame} className="grid gap-3 rounded-xl border border-emerald-400/25 bg-emerald-500/5 p-4 sm:grid-cols-2 lg:grid-cols-5">
+                <input type="hidden" name="franchiseSlug" value={franchiseSlug} />
+                <label className="flex flex-col gap-1 text-xs text-zinc-400">
+                  Title
+                  <input name="title" required placeholder="Game title" className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white" />
+                </label>
+                <label className="flex flex-col gap-1 text-xs text-zinc-400">
+                  Year
+                  <input name="year" required type="number" min="1" max="2100" placeholder="2024" className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white" />
+                </label>
+                <label className="flex flex-col gap-1 text-xs text-zinc-400">
+                  Category
+                  <select name="subcategoryId" required className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white">
+                    {categories.map((category) => <option key={category.id} value={category.id}>{category.title}</option>)}
+                  </select>
+                </label>
+                <label className="flex flex-col gap-1 text-xs text-zinc-400">
+                  Platforms
+                  <input name="platforms" placeholder="PC|PlayStation 5" className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white" />
+                </label>
+                <div className="flex items-end">
+                  <button type="submit" className="w-full rounded-lg bg-emerald-500/20 px-3 py-2 text-sm font-semibold text-emerald-100 hover:bg-emerald-500/30">Save game</button>
+                </div>
+              </form>
             )}
 
             {categories.map((category, catIdx) => {
@@ -565,10 +621,25 @@ export default function FranchiseChecklistView({
                               </td>
                             )}
                             <td className="py-3 pl-4 sm:pl-6 font-medium text-white">
+                              {isAdmin && editingGameId === game.id ? (
+                                <form action={updateManualGame} className="grid gap-2 sm:grid-cols-4">
+                                  <input type="hidden" name="gameId" value={game.id} />
+                                  <input type="hidden" name="franchiseSlug" value={franchiseSlug} />
+                                  <input name="title" defaultValue={game.title} required className="rounded border border-white/10 bg-black/30 px-2 py-1 text-sm text-white sm:col-span-2" />
+                                  <input name="year" defaultValue={game.year || ''} type="number" required className="rounded border border-white/10 bg-black/30 px-2 py-1 text-sm text-white" />
+                                  <input name="platforms" defaultValue={game.platforms?.join('|') ?? ''} placeholder="Platforms separated by |" className="rounded border border-white/10 bg-black/30 px-2 py-1 text-xs text-white sm:col-span-2" />
+                                  <input name="rawgSlug" defaultValue={game.rawgSlug ?? ''} placeholder="RAWG slug (optional)" className="rounded border border-white/10 bg-black/30 px-2 py-1 text-xs text-white sm:col-span-2" />
+                                  <div className="flex gap-2 sm:col-span-4">
+                                    <button type="submit" className="rounded bg-emerald-500/20 px-2 py-1 text-xs text-emerald-100">Save</button>
+                                    <button type="button" onClick={() => setEditingGameId(null)} className="rounded bg-white/10 px-2 py-1 text-xs text-zinc-300">Cancel</button>
+                                  </div>
+                                </form>
+                              ) : (
                               <div className="flex flex-col">
                                 <span>{game.title}</span>
                                 <span className="text-[11px] text-zinc-400">{game.year && game.year !== 0 ? game.year : ''}{(game.platforms && game.platforms.length > 0) ? ` • ${game.platforms.join(', ')}` : ''}</span>
                               </div>
+                              )}
                             </td>
 
                             <td className="py-3 px-3 text-center">
@@ -588,6 +659,9 @@ export default function FranchiseChecklistView({
                             <td className="py-3 pr-4 sm:pr-6 text-right">
                              {isAdmin ? (
                                <div className="flex items-center justify-end gap-2">
+                                 <button type="button" onClick={() => setEditingGameId(editingGameId === game.id ? null : game.id)} className="rounded-md border border-[#FED140]/35 bg-[#FED140]/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#FED140] hover:bg-[#FED140]/20">
+                                   {editingGameId === game.id ? 'Close' : 'Edit'}
+                                 </button>
                                  <select
                                    value={category.id}
                                    onChange={(event) => handleMoveGameToCategory(game.id, event.target.value)}

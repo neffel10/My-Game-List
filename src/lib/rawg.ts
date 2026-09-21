@@ -66,6 +66,8 @@ function tokenizeForMatch(s?: string) {
     .filter((token) => token.length > 1);
 }
 
+const MATCH_STOP_WORDS = new Set(['the', 'of', 'and', 'game', 'games', 'series']);
+
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -198,7 +200,10 @@ export async function fetchFranchiseGames(config: FranchiseSeedConfig) {
     .filter(Boolean);
   const franchiseTokens = [...new Set(
     [config.name, ...config.aliases].flatMap(tokenizeForMatch),
-  )].filter((token) => !['the', 'game', 'games', 'series'].includes(token));
+  )].filter((token) => !MATCH_STOP_WORDS.has(token));
+  const franchiseTokenGroups = [...new Set([config.name, ...config.aliases])]
+    .map((value) => tokenizeForMatch(value).filter((token) => !MATCH_STOP_WORDS.has(token)))
+    .filter((tokens) => tokens.length > 0);
   const canonicalTitles = config.fallbackGames.map((game) => ({
     normalized: normalizeForMatch(game.title),
     title: game.title,
@@ -222,14 +227,20 @@ export async function fetchFranchiseGames(config: FranchiseSeedConfig) {
     const nameNorm = normalizeForMatch(title);
     const slugNorm = normalizeForMatch(slug);
     const titleTokens = tokenizeForMatch(title);
+    const slugTokens = tokenizeForMatch(slug);
+    const searchableTokens = new Set([...titleTokens, ...slugTokens]);
     const reasons: string[] = [];
     let score = 0;
 
     const exactCanonical = canonicalTitles.some((game) => game.normalized === nameNorm || game.normalized === slugNorm);
     const matchingAliases = aliasesNorm.filter((alias) => nameNorm.includes(alias) || slugNorm.includes(alias));
-    const matchingTokens = franchiseTokens.filter((token) => titleTokens.includes(token));
-    const coreTokenMatches = franchiseTokens.filter((token) => token.length >= 5 && titleTokens.includes(token));
+    const matchingTokens = franchiseTokens.filter((token) => searchableTokens.has(token));
+    const coreTokenMatches = franchiseTokens.filter((token) => token.length >= 5 && searchableTokens.has(token));
     const startsWithCoreToken = coreTokenMatches.some((token) => titleTokens[0] === token);
+    const completeFranchiseMatch = franchiseTokenGroups.some((group) =>
+      group.length > 1 && group.every((token) => searchableTokens.has(token))
+    );
+    const hasMultiWordFranchise = franchiseTokenGroups.some((group) => group.length > 1);
     const phraseMatch = [config.name, ...config.aliases].some((alias) => {
       const phrase = stripDiacritics(alias).toLowerCase().trim();
       return phrase.length > 3 && new RegExp(`^${escapeRegExp(phrase)}(?:\\s|:|-|$)`, 'i').test(stripDiacritics(title).toLowerCase());
@@ -250,6 +261,10 @@ export async function fetchFranchiseGames(config: FranchiseSeedConfig) {
     if (matchingTokens.length >= Math.min(2, franchiseTokens.length)) {
       score += 15;
       reasons.push('multipleFranchiseTokens');
+    }
+    if (completeFranchiseMatch) {
+      score += 35;
+      reasons.push('allFranchiseWordsMatch');
     }
     if (startsWithCoreToken && matchingTokens.length === 1) {
       score += 25;
@@ -274,7 +289,11 @@ export async function fetchFranchiseGames(config: FranchiseSeedConfig) {
 
     // A single generic keyword is not enough. This is what previously admitted
     // titles such as "Great Witcher" into the franchise.
-    const hasStrongTextMatch = exactCanonical || phraseMatch || hasFranchiseInSlug || startsWithCoreToken;
+    // Multi-word franchises must match every meaningful word. Matching only
+    // "war" must never import unrelated titles such as "Jungle Heat: War of Clans".
+    if (hasMultiWordFranchise && !exactCanonical && !completeFranchiseMatch) continue;
+
+    const hasStrongTextMatch = exactCanonical || phraseMatch || hasFranchiseInSlug || startsWithCoreToken || completeFranchiseMatch;
     if (!hasStrongTextMatch && matchingTokens.length < 2) continue;
     if (score < 35) continue;
 

@@ -72,6 +72,7 @@ export default async function FranchisePage({ params }: PageProps) {
         id: g.id,
         title: g.title,
         year: g.year,
+          rawgSlug: g.rawgSlug,
           platforms: g.platforms ?? [],
           completed: userProg?.completed ?? false,
           mastered: userProg?.mastered ?? false,
