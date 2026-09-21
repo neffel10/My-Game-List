@@ -58,6 +58,18 @@ function normalizeForMatch(s?: string) {
   return stripDiacritics(s).toLowerCase().replace(/[^a-z0-9]+/g, '');
 }
 
+function tokenizeForMatch(s?: string) {
+  if (!s) return [];
+  return stripDiacritics(s)
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((token) => token.length > 1);
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function getSearchTerms(value: string) {
   const normalized = normalizeForMatch(value);
   const words = stripDiacritics(value)
@@ -177,140 +189,123 @@ export async function fetchFranchiseGames(config: FranchiseSeedConfig) {
     }
   }
 
-  // Filter results to reduce false positives: require the game name or slug to include the franchise or an alias.
+  // Rank candidates instead of accepting every partial text match. RAWG contains
+  // unrelated games, fan projects and regional variants with the same keywords.
   const franchiseNorm = normalizeForMatch(config.slug);
   const aliasesNorm = [config.name, ...config.aliases]
     .flatMap((value) => getSearchTerms(value))
     .filter(Boolean);
-  const franchiseTerms = [...new Set(
-    [config.name, ...config.aliases]
-      .flatMap((value) => stripDiacritics(value).toLowerCase().split(/[^a-z0-9]+/))
-      .filter((term) => term.length > 2 && !['the', 'game', 'games', 'series'].includes(term)),
-  )];
-
-  const filtered: RawgGameResult[] = [];
+  const franchiseTokens = [...new Set(
+    [config.name, ...config.aliases].flatMap(tokenizeForMatch),
+  )].filter((token) => !['the', 'game', 'games', 'series'].includes(token));
+  const canonicalTitles = config.fallbackGames.map((game) => ({
+    normalized: normalizeForMatch(game.title),
+    title: game.title,
+  }));
+  const hardRejectTokens = [
+    'fanmade', 'fangame', 'prototype', 'unofficial', 'bootleg', 'romhack',
+    'hack', 'translation', 'leak', 'unreleased', 'notpokemon', 'definitelynot',
+  ];
+  const softRejectTokens = [
+    'great', 'rise', 'new saga', 'collection', 'compilation', 'remake',
+    'remaster', 'remastered', 'anniversary', 'redux', 'ultimate', 'definitive',
+    'edition', 'port', 're-release', 'reissue', 'mobile', 'slot',
+  ];
+  const scoredCandidates: Array<{ candidate: RawgGameResult; score: number; reasons: string[] }> = [];
 
   for (const result of seen.values()) {
     const title = result.name ?? '';
     const slug = result.slug ?? '';
+    if (isBlacklistedGameMatch(config.slug, title, slug, blacklistedGames)) continue;
 
-    if (isBlacklistedGameMatch(config.slug, title, slug, blacklistedGames)) {
-      continue;
+    const nameNorm = normalizeForMatch(title);
+    const slugNorm = normalizeForMatch(slug);
+    const titleTokens = tokenizeForMatch(title);
+    const reasons: string[] = [];
+    let score = 0;
+
+    const exactCanonical = canonicalTitles.some((game) => game.normalized === nameNorm || game.normalized === slugNorm);
+    const matchingAliases = aliasesNorm.filter((alias) => nameNorm.includes(alias) || slugNorm.includes(alias));
+    const matchingTokens = franchiseTokens.filter((token) => titleTokens.includes(token));
+    const phraseMatch = [config.name, ...config.aliases].some((alias) => {
+      const phrase = stripDiacritics(alias).toLowerCase().trim();
+      return phrase.length > 3 && new RegExp(`^${escapeRegExp(phrase)}(?:\\s|:|-|$)`, 'i').test(stripDiacritics(title).toLowerCase());
+    });
+    const hasFranchiseInSlug = Boolean(franchiseNorm && slugNorm.includes(franchiseNorm));
+
+    if (exactCanonical) {
+      score += 100;
+      reasons.push('canonicalTitle');
+    }
+    if (phraseMatch) {
+      score += 45;
+      reasons.push('titleStartsWithFranchise');
+    } else if (matchingAliases.length > 0 || hasFranchiseInSlug) {
+      score += 25;
+      reasons.push('partialFranchiseMatch');
+    }
+    if (matchingTokens.length >= Math.min(2, franchiseTokens.length)) {
+      score += 15;
+      reasons.push('multipleFranchiseTokens');
+    }
+    if (/\b(?:[0-9]+|i{1,3}|iv|v|vi|vii|viii|ix|x)\b/i.test(title)) {
+      score += 15;
+      reasons.push('numberedInstallment');
+    }
+    if (result.released) score += 5;
+
+    const hardRejectFound = hardRejectTokens.filter((token) => nameNorm.includes(token) || slugNorm.includes(token));
+    const softRejectFound = softRejectTokens.filter((token) => nameNorm.includes(normalizeForMatch(token)) || slugNorm.includes(normalizeForMatch(token)));
+    if (hardRejectFound.length > 0) {
+      score -= 100;
+      reasons.push(`hardReject:${hardRejectFound.join(',')}`);
+    }
+    if (softRejectFound.length > 0 && !exactCanonical) {
+      score -= 35;
+      reasons.push(`variant:${softRejectFound.join(',')}`);
     }
 
-    const nameNorm = normalizeForMatch(result.name);
-    const slugNorm = normalizeForMatch(result.slug);
+    // A single generic keyword is not enough. This is what previously admitted
+    // titles such as "Great Witcher" into the franchise.
+    const hasStrongTextMatch = exactCanonical || phraseMatch || hasFranchiseInSlug;
+    if (!hasStrongTextMatch && matchingTokens.length < 2) continue;
+    if (score < 35) continue;
 
-    const matchesAlias = aliasesNorm.some((a) => a && (nameNorm.includes(a) || slugNorm.includes(a)));
-    const matchesFranchiseSlug = franchiseNorm && slugNorm.includes(franchiseNorm);
-    const matchingTerms = franchiseTerms.filter((term) => nameNorm.includes(term) || slugNorm.includes(term));
-    const matchesRelevantTerm =
-      matchingTerms.length >= 2 ||
-      (matchingTerms.length === 1 && matchingTerms[0].length >= 6);
+    scoredCandidates.push({ candidate: result, score, reasons });
+  }
 
-    if (matchesAlias || matchesFranchiseSlug || matchesRelevantTerm) {
-      filtered.push(result);
-      continue;
-    }
+  scoredCandidates.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    const aDate = a.candidate.released ? new Date(a.candidate.released).getTime() : Number.MAX_SAFE_INTEGER;
+    const bDate = b.candidate.released ? new Date(b.candidate.released).getTime() : Number.MAX_SAFE_INTEGER;
+    return aDate - bDate;
+  });
 
-    // If it didn't match by text, try a more expensive check: fetch details and inspect description/slug again.
-    try {
-          const details = result.id ? await fetchRawgGameDetails(result.id) : result;
-          const dName = details?.name ?? '';
-          const dSlug = details?.slug ?? '';
-          const dDesc = (details as any)?.description_raw ?? '';
+  const filtered: RawgGameResult[] = [];
+  for (const scored of scoredCandidates.slice(0, 75)) {
+    let candidate = scored.candidate;
 
-          const dNameNorm = normalizeForMatch(dName);
-          const dSlugNorm = normalizeForMatch(dSlug);
-          const dDescNorm = normalizeForMatch(dDesc);
-
-          // Exclude clearly unofficial / fan-made / prototype / demo / hack / translation entries
-          const disallowedNameTokens = [
-            'fanmade',
-            'fangame',
-            'prototype',
-            'demo',
-            'unofficial',
-            'bootleg',
-            'romhack',
-            'hack',
-            'translation',
-            'leak',
-            'notpokemon',
-            'definitelynot',
-            'unreleased',
-          ];
-
-          const disallowedTagTokens = [
-            'mod',
-            'fan',
-            'fan-made',
-            'translation',
-            'hack',
-            'prototype',
-            'demo',
-            'beta',
-            'alpha',
-            'bootleg',
-            'unofficial',
-          ];
-
-          const disallowedRemakeTokens = [
-            'remake',
-            'remaster',
-            'remastered',
-            'anniversary',
-            'collection',
-            'compilation',
-            'hd',
-            'redux',
-            'ultimate',
-            'definitive',
-            'edition',
-            'port',
-            're-release',
-            'reissue',
-          ];
-
-          const nameContainsDisallowed = disallowedNameTokens.some((t) => dNameNorm.includes(t) || dSlugNorm.includes(t) || dDescNorm.includes(t));
-
-          // check tags from details (if present)
-          const tagsList: string[] = [];
-          if ((details as any)?.tags && Array.isArray((details as any).tags)) {
-            for (const t of (details as any).tags) {
-              if (t?.slug) tagsList.push(String(t.slug).toLowerCase());
-              if (t?.name) tagsList.push(String(t.name).toLowerCase());
-            }
-          }
-
-          const tagContainsDisallowed = tagsList.some((t) => disallowedTagTokens.some((d) => t.includes(d)));
-          const tagContainsRemake = tagsList.some((t) => disallowedRemakeTokens.some((d) => t.includes(d)));
-
-          if (nameContainsDisallowed || tagContainsDisallowed) {
-            // skip clearly unofficial/fan entries
-            continue;
-          }
-
-          // Skip remakes/remasters/ports unless the result matches aliases/franchise slug exactly (rare)
-          const isRemakeLike = disallowedRemakeTokens.some((d) => dNameNorm.includes(d) || dSlugNorm.includes(d) || dDescNorm.includes(d)) || tagContainsRemake;
-
-          const detailsMatch =
-            aliasesNorm.some((a) => a && (dNameNorm.includes(a) || dSlugNorm.includes(a) || dDescNorm.includes(a))) ||
-            franchiseTerms.filter((term) => dNameNorm.includes(term) || dSlugNorm.includes(term) || dDescNorm.includes(term)).length >=
-              Math.min(2, franchiseTerms.length);
-          if (detailsMatch || (franchiseNorm && dSlugNorm.includes(franchiseNorm))) {
-            if (isRemakeLike) {
-              // prefer to skip remakes/ports/re-releases
-              continue;
-            }
-            // merge richer details when available
-            filtered.push({ ...result, ...(details ?? {}) });
-            continue;
-          }
-        } catch (err) {
-          // ignore detail fetch errors and skip more expensive checks if they fail
-        }
+    // Fetch details only for accepted candidates. Besides reducing API calls,
+    // this lets official developer/publisher data improve borderline matches.
+    if (candidate.id && scored.score < 70) {
+      const details = await fetchRawgGameDetails(candidate.id);
+      if (details) {
+        const detailText = `${details.name ?? ''} ${details.slug ?? ''} ${details.description_raw ?? ''}`.toLowerCase();
+        if (hardRejectTokens.some((token) => detailText.includes(token))) continue;
+        candidate = { ...candidate, ...details };
       }
+    }
+
+    console.log('[RAWG scored candidate]', {
+      franchise: config.name,
+      name: candidate.name,
+      slug: candidate.slug,
+      score: scored.score,
+      reasons: scored.reasons,
+      released: candidate.released,
+    });
+    filtered.push(candidate);
+  }
 
   // For results missing release info, try to fetch full game details to get accurate release dates
   const enriched: RawgGameResult[] = [];
@@ -330,7 +325,7 @@ export async function fetchFranchiseGames(config: FranchiseSeedConfig) {
         if (details) {
           res = { ...r, ...details };
         }
-      } catch (err) {
+      } catch {
         // ignore
       }
     }
