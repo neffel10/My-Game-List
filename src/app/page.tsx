@@ -3,7 +3,7 @@ import Navbar from '@/components/layout/Navbar';
 import FeaturedFanArt from '@/components/home/FeaturedFanArt';
 import FranchiseCard from '@/components/home/FranchiseCard';
 import { prisma } from '@/lib/prisma';
-import { Flame, Clock, ShieldCheck, Gift, Sparkles, ArrowRight } from 'lucide-react';
+import { Flame, Clock, Gift, Sparkles, ArrowRight } from 'lucide-react';
 
 function getEraLabel(years: number[]) {
   if (years.length === 0) return 'Updated now';
@@ -26,9 +26,7 @@ export default async function HomePage() {
           },
         },
       },
-      orderBy: {
-        name: 'asc',
-      },
+      orderBy: { name: 'asc' },
     }),
     prisma.fanArtSubmission.findFirst({
       where: { isFeatured: true, isActive: true },
@@ -62,6 +60,18 @@ export default async function HomePage() {
     .sort((a, b) => b.totalGames - a.totalGames)
     .slice(0, 4);
 
+  const latestFranchises = franchises
+    .slice()
+    .sort((a, b) => {
+      const createdAtDifference = b.createdAt.getTime() - a.createdAt.getTime();
+      return createdAtDifference || b.id.localeCompare(a.id);
+    })
+    .slice(0, 4)
+    .map((franchise) => {
+      const totalGames = franchise.categories.reduce((total, category) => total + category.games.length, 0);
+      return { name: franchise.name, slug: franchise.slug, totalGames };
+    });
+
   const featuredFranchise =
     mappedFranchises.find((franchise) => franchise.slug === 'pokemon') ?? mappedFranchises[0] ?? null;
 
@@ -88,7 +98,7 @@ export default async function HomePage() {
       <Navbar />
 
       <main className="flex-1">
-        <section className="relative overflow-hidden border-b border-white/[0.06] bg-gradient-to-b from-[#0e1320] to-[#07090e] py-16 sm:py-24">
+        <section className="relative overflow-hidden border-b border-[#FED140]/30 bg-gradient-to-b from-[#0e1320] to-[#07090e] py-16 sm:py-24">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:items-center">
               <div className="lg:col-span-7 space-y-6">
@@ -123,7 +133,7 @@ export default async function HomePage() {
                   </Link>
                 </div>
 
-                <div className="grid grid-cols-3 gap-6 pt-6 border-t border-white/[0.06] max-w-md">
+                <div className="grid grid-cols-3 gap-6 pt-6 border-t border-[#FED140]/35 max-w-md">
                   <div>
                     <div className="text-xl font-bold text-white">{franchises.length}</div>
                     <div className="text-xs text-zinc-500">Active sagas</div>
@@ -157,7 +167,7 @@ export default async function HomePage() {
         <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 gap-10 lg:grid-cols-12">
             <div className="lg:col-span-8 space-y-12">
-              <section className="space-y-6">
+              <section className="space-y-6 border-t border-[#FED140]/25 pt-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Flame className="h-5 w-5 text-white" />
@@ -175,41 +185,6 @@ export default async function HomePage() {
                 </div>
               </section>
 
-              <section className="space-y-6">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="h-5 w-5 text-white" />
-                  <h2 className="text-xl font-bold tracking-tight text-white">Recent Proof Submissions</h2>
-                </div>
-
-                <div className="divide-y divide-white/[0.06] rounded-xl border border-white/[0.08] bg-white/[0.02]">
-                  {[
-                    { user: 'Valkyrie99', game: 'Pokémon Sword', franchise: 'Pokémon', time: '12m ago', points: '+150 pts' },
-                    { user: 'CyberWolf', game: 'Resident Evil 7', franchise: 'Resident Evil', time: '34m ago', points: '+200 pts' },
-                    { user: 'Solidus', game: 'Metal Gear Solid 3: Snake Eater', franchise: 'Metal Gear Solid', time: '1h ago', points: '+180 pts' },
-                  ].map((activity, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-4 text-xs sm:text-sm">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-800 text-zinc-300 font-semibold text-xs border border-white/10">
-                          {activity.user.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="text-white font-medium">
-                            <span className="text-zinc-400">@{activity.user}</span> completed{' '}
-                            <span className="text-white">{activity.game}</span>
-                          </p>
-                          <p className="text-[11px] text-zinc-500">Franchise: {activity.franchise}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <span className="inline-block rounded-md border border-white/10 bg-white/[0.05] px-2 py-0.5 font-mono text-[11px] text-zinc-300">
-                          {activity.points}
-                        </span>
-                        <p className="text-[10px] text-zinc-500 mt-1">{activity.time}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
             </div>
 
             <aside className="lg:col-span-4 space-y-8">
@@ -254,14 +229,14 @@ export default async function HomePage() {
                 </Link>
               </div>
 
-              <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-5 space-y-4">
+              <div className="rounded-xl border border-[#FED140]/35 bg-white/[0.02] p-5 space-y-4">
                 <div className="flex items-center gap-2 text-white">
                   <Clock className="h-4 w-4 text-zinc-400" />
                   <h3 className="text-sm font-semibold tracking-tight">Latest Sagas Added</h3>
                 </div>
 
                 <div className="divide-y divide-white/[0.05]">
-                  {mappedFranchises.map((item) => (
+                  {latestFranchises.map((item) => (
                     <div key={item.slug} className="py-2.5 flex items-center justify-between text-xs">
                       <div>
                         <Link href={`/franchises/${item.slug}`} className="font-medium text-zinc-200 hover:text-white transition">
@@ -286,7 +261,7 @@ export default async function HomePage() {
         </div>
       </main>
 
-      <footer className="border-t border-white/[0.08] bg-[#07090e] py-8 text-center text-xs text-zinc-500">
+      <footer className="border-t border-[#FED140]/25 bg-[#07090e] py-8 text-center text-xs text-zinc-500">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p>© {new Date().getFullYear()} MyGameList. All game trademarks and fan art belong to their respective creators.</p>
           <div className="flex gap-6">

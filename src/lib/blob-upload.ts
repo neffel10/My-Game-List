@@ -69,22 +69,48 @@ export async function uploadImageToBlob(file: File, folder: string, maxBytes = D
 export async function uploadImageUrlToBlob(url: string, folder: string, maxBytes = DEFAULT_IMAGE_MAX_BYTES) {
   const normalizedUrl = url.trim();
   if (!/^https?:\/\//i.test(normalizedUrl)) {
-    throw new Error('Please provide a valid public http(s) image URL.');
+    throw new Error('IMAGE_URL_ERROR: Please provide a valid public http(s) image URL.');
   }
 
-  const response = await fetch(normalizedUrl, { redirect: 'follow', cache: 'no-store' });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  let response: Response;
+  try {
+    response = await fetch(normalizedUrl, {
+      redirect: 'follow',
+      cache: 'no-store',
+      signal: controller.signal,
+      headers: {
+        Accept: 'image/avif,image/webp,image/apng,image/jpeg,image/png,*/*;q=0.8',
+        'User-Agent': 'Mozilla/5.0 (compatible; MyGameList/1.0; +https://my-game-list.vercel.app)',
+      },
+    });
+  } catch (error) {
+    const detail = error instanceof Error && error.name === 'AbortError'
+      ? 'The image server took too long to respond.'
+      : 'The image server could not be reached.';
+    throw new Error(`IMAGE_URL_ERROR: ${detail}`);
+  } finally {
+    clearTimeout(timeout);
+  }
+
   if (!response.ok) {
-    throw new Error(`The image URL could not be downloaded (${response.status}).`);
+    throw new Error(`IMAGE_URL_ERROR: The image server rejected the download (${response.status}). Try a direct image URL from a host that allows public downloads.`);
   }
 
   const contentType = response.headers.get('content-type')?.split(';')[0].trim() ?? '';
   if (!contentType.startsWith('image/')) {
-    throw new Error('The provided URL does not point to an image.');
+    throw new Error('IMAGE_URL_ERROR: The provided URL does not point to a directly downloadable image.');
+  }
+
+  const contentLength = Number(response.headers.get('content-length') ?? 0);
+  if (contentLength > maxBytes) {
+    throw new Error(`IMAGE_URL_ERROR: The image is too large. Please use an image smaller than ${Math.round(maxBytes / (1024 * 1024))}MB.`);
   }
 
   const buffer = await response.arrayBuffer();
   if (buffer.byteLength > maxBytes) {
-    throw new Error(`The image is too large. Please use an image smaller than ${Math.round(maxBytes / (1024 * 1024))}MB.`);
+    throw new Error(`IMAGE_URL_ERROR: The image is too large. Please use an image smaller than ${Math.round(maxBytes / (1024 * 1024))}MB.`);
   }
 
   const extension = contentType.split('/')[1]?.replace(/[^a-z0-9]/gi, '') || 'jpg';

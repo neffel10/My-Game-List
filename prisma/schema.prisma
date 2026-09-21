@@ -34,6 +34,7 @@ model Franchise {
   coverImage  String
   bannerImage String?
   apiSource   String?
+  createdAt   DateTime      @default(now())
   categories  Subcategory[]
   avatars     UnlockableAvatar[]
   fanArts     FanArtSubmission[]

@@ -121,6 +121,15 @@ export async function createFranchise(formData: FormData) {
     redirect(`/admin/content?task=${task.id}`);
   } catch (error) {
     console.error('[createFranchise failed]', error);
+    const digest = error && typeof error === 'object' && 'digest' in error
+      ? String(error.digest)
+      : '';
+    if (digest.startsWith('NEXT_REDIRECT')) {
+      throw error;
+    }
+    if (error instanceof Error && error.message.startsWith('IMAGE_URL_ERROR:')) {
+      redirect(`/admin/content?error=franchise-image&message=${encodeURIComponent(error.message.replace('IMAGE_URL_ERROR: ', ''))}`);
+    }
     throw error;
   }
 }

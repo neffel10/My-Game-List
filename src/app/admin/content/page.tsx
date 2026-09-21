@@ -29,6 +29,7 @@ interface AdminContentPageProps {
     games?: string;
     task?: string;
     retry?: string;
+    message?: string;
   }>;
 }
 
@@ -133,6 +134,12 @@ export default async function AdminContentPage({ searchParams }: AdminContentPag
           {params.error === 'franchise-input' && (
             <div className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">
               Enter a franchise name and select a banner image before importing.
+            </div>
+          )}
+          {params.error === 'franchise-image' && (
+            <div className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+              The banner URL could not be imported: {params.message ?? 'the remote server rejected the download.'}
+              <span className="mt-1 block text-xs text-red-200/80">Use a direct image URL that is publicly downloadable, or upload the file locally.</span>
             </div>
           )}
           {params.error === 'invalid-franchise-name' && (
