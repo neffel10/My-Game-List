@@ -112,6 +112,10 @@ export function normalizeReleaseDate(released?: string | null) {
 export async function fetchRawgGames(searchQuery: string, options?: { pageSize?: number; exact?: boolean }) {
   const apiKey = process.env.RAWG_API_KEY;
   if (!apiKey) {
+    console.error('[RAWG diagnostic] Missing RAWG_API_KEY', {
+      query: searchQuery,
+      baseUrl: RAWG_BASE_URL,
+    });
     return [] as RawgGameResult[];
   }
 
@@ -132,11 +136,27 @@ export async function fetchRawgGames(searchQuery: string, options?: { pageSize?:
   });
 
   if (!response.ok) {
+    const responseText = await response.text().catch(() => '');
+    console.error('[RAWG diagnostic] API request failed', {
+      query: searchQuery,
+      exact: options?.exact ?? false,
+      status: response.status,
+      statusText: response.statusText,
+      response: responseText.slice(0, 300),
+      baseUrl: RAWG_BASE_URL,
+    });
     throw new Error(`RAWG request failed for "${searchQuery}": ${response.status}`);
   }
 
   const payload = (await response.json()) as { results?: RawgGameResult[] };
-  return payload.results ?? [];
+  const results = payload.results ?? [];
+  console.log('[RAWG diagnostic] API response', {
+    query: searchQuery,
+    exact: options?.exact ?? false,
+    resultCount: results.length,
+    sampleNames: results.slice(0, 10).map((result) => result.name).filter(Boolean),
+  });
+  return results;
 }
 
 export async function fetchRawgGameDetails(idOrSlug: string | number) {
@@ -218,11 +238,15 @@ export async function fetchFranchiseGames(config: FranchiseSeedConfig) {
     'edition', 'port', 're-release', 'reissue', 'mobile', 'slot',
   ];
   const scoredCandidates: Array<{ candidate: RawgGameResult; score: number; reasons: string[] }> = [];
+  const rejectedCandidates: Array<{ name: string; slug: string; reasons: string[] }> = [];
 
   for (const result of seen.values()) {
     const title = result.name ?? '';
     const slug = result.slug ?? '';
-    if (isBlacklistedGameMatch(config.slug, title, slug, blacklistedGames)) continue;
+    if (isBlacklistedGameMatch(config.slug, title, slug, blacklistedGames)) {
+      rejectedCandidates.push({ name: title, slug, reasons: ['blacklisted'] });
+      continue;
+    }
 
     const nameNorm = normalizeForMatch(title);
     const slugNorm = normalizeForMatch(slug);
@@ -291,11 +315,24 @@ export async function fetchFranchiseGames(config: FranchiseSeedConfig) {
     // titles such as "Great Witcher" into the franchise.
     // Multi-word franchises must match every meaningful word. Matching only
     // "war" must never import unrelated titles such as "Jungle Heat: War of Clans".
-    if (hasMultiWordFranchise && !exactCanonical && !completeFranchiseMatch) continue;
+    if (hasMultiWordFranchise && !exactCanonical && !completeFranchiseMatch) {
+      rejectedCandidates.push({
+        name: title,
+        slug,
+        reasons: ['missing-all-franchise-words', `matched:${matchingTokens.join('|') || 'none'}`],
+      });
+      continue;
+    }
 
     const hasStrongTextMatch = exactCanonical || phraseMatch || hasFranchiseInSlug || startsWithCoreToken || completeFranchiseMatch;
-    if (!hasStrongTextMatch && matchingTokens.length < 2) continue;
-    if (score < 35) continue;
+    if (!hasStrongTextMatch && matchingTokens.length < 2) {
+      rejectedCandidates.push({ name: title, slug, reasons: ['weak-text-match'] });
+      continue;
+    }
+    if (score < 35) {
+      rejectedCandidates.push({ name: title, slug, reasons: [`low-score:${score}`, ...reasons] });
+      continue;
+    }
 
     scoredCandidates.push({ candidate: result, score, reasons });
   }
@@ -340,6 +377,9 @@ export async function fetchFranchiseGames(config: FranchiseSeedConfig) {
     franchise: config.name,
     candidateCount: seen.size,
     matchedCount: filtered.length,
+    rejectedCount: rejectedCandidates.length,
+    rejectedSample: rejectedCandidates.slice(0, 20),
+    searchedQueries: queries,
   });
 
   for (const r of filtered) {

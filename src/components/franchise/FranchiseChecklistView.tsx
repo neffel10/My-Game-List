@@ -6,7 +6,7 @@ import Navbar from '@/components/layout/Navbar';
 import CelebrationOverlay, { CelebrationType } from '@/components/franchise/CelebrationOverlay';
 import { toggleUserGameProgress } from '@/app/actions/progress';
 import { uploadEvidence } from '@/app/actions/evidence';
-import { createFranchiseSubcategory, createManualGame, deleteSelectedGames, importFranchiseGamesCsv, updateGameCategory, updateManualGame } from '@/app/actions/game-admin';
+import { createFranchiseSubcategory, createManualGame, deleteFranchiseSubcategories, deleteSelectedGames, importFranchiseGamesCsv, renameFranchiseSubcategory, updateGameCategory, updateManualGame } from '@/app/actions/game-admin';
 import { updateFranchiseBanner } from '@/app/actions/content-admin';
 import {
   UploadCloud,
@@ -16,6 +16,9 @@ import {
   Gamepad2,
   FileCheck,
   AlertTriangle,
+  Layers,
+  X,
+  Trash2,
 } from 'lucide-react';
 import { BeatGameToggle, MasteredToggle } from '@/components/franchise/CheckToggles';
 
@@ -68,6 +71,12 @@ export default function FranchiseChecklistView({
   const [creatingCategory, setCreatingCategory] = useState(false);
   const [showAddGameForm, setShowAddGameForm] = useState(false);
   const [editingGameId, setEditingGameId] = useState<string | null>(null);
+  const [showCategoryManager, setShowCategoryManager] = useState(false);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+  const [destinationCategoryId, setDestinationCategoryId] = useState('');
+  const [categoryNameDrafts, setCategoryNameDrafts] = useState<Record<string, string>>({});
+  const [categoryActionError, setCategoryActionError] = useState<string | null>(null);
+  const [categoryActionPending, setCategoryActionPending] = useState(false);
   const [celebration, setCelebration] = useState<{
     type: CelebrationType;
     gameTitle: string;
@@ -153,16 +162,66 @@ export default function FranchiseChecklistView({
       return;
     }
 
-    setCategories((prev) => [
-      ...prev,
-      {
-        id: result.subcategoryId,
-        title: result.title,
-        games: [],
-      },
-    ]);
+    setCategories((previous) => previous.some((category) => category.id === result.subcategoryId)
+      ? previous
+      : [...previous, { id: result.subcategoryId, title: result.title, games: [] }]);
     setNewCategoryTitle('');
     setCreatingCategory(false);
+  };
+
+  const handleRenameCategory = async (categoryId: string) => {
+    const title = categoryNameDrafts[categoryId]?.trim();
+    if (!title) return;
+
+    setCategoryActionPending(true);
+    setCategoryActionError(null);
+    const formData = new FormData();
+    formData.set('franchiseSlug', franchiseSlug);
+    formData.set('subcategoryId', categoryId);
+    formData.set('title', title);
+
+    try {
+      const result = await renameFranchiseSubcategory(formData);
+      setCategories((previous) => previous.map((category) =>
+        category.id === result.categoryId ? { ...category, title: result.title } : category
+      ));
+      setCategoryNameDrafts((previous) => ({ ...previous, [result.categoryId]: result.title }));
+    } catch (error) {
+      setCategoryActionError(error instanceof Error ? error.message : 'Could not rename the category.');
+    } finally {
+      setCategoryActionPending(false);
+    }
+  };
+
+  const handleDeleteCategories = async () => {
+    if (selectedCategoryIds.length === 0) return;
+    setCategoryActionPending(true);
+    setCategoryActionError(null);
+    const formData = new FormData();
+    formData.set('franchiseSlug', franchiseSlug);
+    formData.set('destinationId', destinationCategoryId);
+    selectedCategoryIds.forEach((id) => formData.append('subcategoryIds', id));
+
+    try {
+      const result = await deleteFranchiseSubcategories(formData);
+      setCategories((previous) => {
+        const deletedIds = new Set(result.deletedIds);
+        const movedGames = previous
+          .filter((category) => deletedIds.has(category.id))
+          .flatMap((category) => category.games);
+        return previous
+          .filter((category) => !deletedIds.has(category.id))
+          .map((category) => category.id === result.destinationId
+            ? { ...category, games: [...category.games, ...movedGames] }
+            : category);
+      });
+      setSelectedCategoryIds([]);
+      setDestinationCategoryId('');
+    } catch (error) {
+      setCategoryActionError(error instanceof Error ? error.message : 'Could not delete the categories.');
+    } finally {
+      setCategoryActionPending(false);
+    }
   };
 
   const handleMoveGameToCategory = async (gameId: string, nextCategoryId: string) => {
@@ -447,13 +506,13 @@ export default function FranchiseChecklistView({
               </div>
             )}
 
-            <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.08] pb-4">
               <div className="flex items-center gap-2">
                 <Gamepad2 className="h-5 w-5 text-white" />
                 <h2 className="text-base font-semibold text-white">Subseries & Games</h2>
               </div>
 
-              <div className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] p-1 text-xs">
+              <div className="flex shrink-0 items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] p-1 text-xs">
                 {(['all', 'completed', 'pending'] as const).map((mode) => (
                   <button
                     key={mode}
@@ -470,7 +529,7 @@ export default function FranchiseChecklistView({
               </div>
 
               {isAdmin && (
-                <div className="flex items-center gap-2">
+                <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
                   <button
                     type="button"
                     onClick={toggleSelectAllVisible}
@@ -487,22 +546,20 @@ export default function FranchiseChecklistView({
                   >
                     {showAddGameForm ? 'Close add game' : '+ Add game'}
                   </button>
-                  <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] p-1.5">
-                    <input
-                      value={newCategoryTitle}
-                      onChange={(event) => setNewCategoryTitle(event.target.value)}
-                      placeholder="New section tag"
-                      className="w-36 bg-transparent px-2 py-1 text-xs text-white placeholder:text-zinc-500 outline-none"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleCreateCategory}
-                      disabled={creatingCategory || !newCategoryTitle.trim()}
-                      className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-200 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      {creatingCategory ? 'Saving...' : 'Add tag'}
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCategoryNameDrafts(Object.fromEntries(categories.map((category) => [category.id, category.title])));
+                      setSelectedCategoryIds([]);
+                      setDestinationCategoryId('');
+                      setCategoryActionError(null);
+                      setShowCategoryManager(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-zinc-200 transition hover:border-[#FED140]/40 hover:text-[#FED140]"
+                  >
+                    <Layers className="h-3.5 w-3.5" />
+                    Manage categories
+                  </button>
                   <button
                     type="button"
                     onClick={() => setShowDeleteModal(true)}
@@ -964,6 +1021,120 @@ export default function FranchiseChecklistView({
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {showCategoryManager && isAdmin && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 px-4 py-6" role="presentation">
+          <section role="dialog" aria-modal="true" aria-labelledby="category-manager-title" className="max-h-full w-full max-w-2xl overflow-y-auto rounded-2xl border border-[#FED140]/25 bg-zinc-900 p-5 shadow-2xl sm:p-6">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#FED140]">Admin tools</p>
+                <h3 id="category-manager-title" className="mt-1 text-2xl font-bold text-white">Manage categories</h3>
+                <p className="mt-1 text-sm text-zinc-400">Rename categories, add new ones, or move their games before deleting multiple categories.</p>
+              </div>
+              <button type="button" onClick={() => setShowCategoryManager(false)} aria-label="Close category manager" className="rounded-lg p-2 text-zinc-400 hover:bg-white/10 hover:text-white">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {categoryActionError && (
+              <div className="mb-4 rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">{categoryActionError}</div>
+            )}
+
+            <div className="mb-5 rounded-xl border border-white/10 bg-black/20 p-4">
+              <h4 className="mb-3 text-sm font-semibold text-white">Add category</h4>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <input
+                  value={newCategoryTitle}
+                  onChange={(event) => setNewCategoryTitle(event.target.value)}
+                  placeholder="Category name"
+                  maxLength={80}
+                  className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-[#FED140]/50"
+                />
+                <button
+                  type="button"
+                  onClick={handleCreateCategory}
+                  disabled={creatingCategory || !newCategoryTitle.trim()}
+                  className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-100 hover:bg-emerald-500/20 disabled:opacity-40"
+                >
+                  {creatingCategory ? 'Adding...' : 'Add category'}
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs uppercase tracking-wider text-zinc-500">
+                <span>Existing categories</span>
+                <span>{categories.length} total</span>
+              </div>
+              {categories.map((category) => (
+                <div key={category.id} className="grid gap-2 rounded-xl border border-white/10 bg-black/20 p-3 sm:grid-cols-[auto_1fr_auto] sm:items-center">
+                  <input
+                    type="checkbox"
+                    checked={selectedCategoryIds.includes(category.id)}
+                    onChange={() => {
+                      const next = selectedCategoryIds.includes(category.id)
+                        ? selectedCategoryIds.filter((id) => id !== category.id)
+                        : [...selectedCategoryIds, category.id];
+                      setSelectedCategoryIds(next);
+                      if (destinationCategoryId && next.includes(destinationCategoryId)) {
+                        setDestinationCategoryId(categories.find((item) => !next.includes(item.id))?.id ?? '');
+                      }
+                    }}
+                    aria-label={`Select ${category.title} for deletion`}
+                    className="h-4 w-4 accent-red-500"
+                  />
+                  <input
+                    value={categoryNameDrafts[category.id] ?? category.title}
+                    onChange={(event) => setCategoryNameDrafts((previous) => ({ ...previous, [category.id]: event.target.value }))}
+                    aria-label={`Category name: ${category.title}`}
+                    className="min-w-0 rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-[#FED140]/50"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void handleRenameCategory(category.id)}
+                    disabled={categoryActionPending || !categoryNameDrafts[category.id]?.trim() || categoryNameDrafts[category.id]?.trim() === category.title}
+                    className="rounded-lg border border-[#FED140]/30 bg-[#FED140]/10 px-3 py-2 text-xs font-semibold text-[#FED140] hover:bg-[#FED140]/20 disabled:opacity-35"
+                  >
+                    Save name
+                  </button>
+                  <p className="pl-6 text-xs text-zinc-500 sm:col-start-2">Contains {category.games.length} games</p>
+                </div>
+              ))}
+            </div>
+
+            {selectedCategoryIds.length > 0 && (
+              <div className="mt-5 rounded-xl border border-red-400/20 bg-red-500/5 p-4">
+                <p className="text-sm font-semibold text-red-100">Delete {selectedCategoryIds.length} selected categories</p>
+                <p className="mt-1 text-xs text-zinc-400">Games in those categories will be moved to the selected remaining category before deletion.</p>
+                <div className="mt-3 flex flex-col gap-3 sm:flex-row">
+                  <select
+                    value={destinationCategoryId}
+                    onChange={(event) => setDestinationCategoryId(event.target.value)}
+                    className="min-w-0 flex-1 rounded-lg border border-white/10 bg-zinc-950 px-3 py-2 text-sm text-white"
+                  >
+                    <option value="">Choose destination category</option>
+                    {categories.filter((category) => !selectedCategoryIds.includes(category.id)).map((category) => (
+                      <option key={category.id} value={category.id}>{category.title}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => void handleDeleteCategories()}
+                    disabled={categoryActionPending || !destinationCategoryId || selectedCategoryIds.length >= categories.length}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-400/30 bg-red-500/15 px-4 py-2 text-sm font-semibold text-red-100 hover:bg-red-500/25 disabled:opacity-40"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    {categoryActionPending ? 'Working...' : 'Delete selected'}
+                  </button>
+                </div>
+                {selectedCategoryIds.length >= categories.length && (
+                  <p className="mt-2 text-xs text-amber-200">At least one category must remain.</p>
+                )}
+              </div>
+            )}
+          </section>
         </div>
       )}
 

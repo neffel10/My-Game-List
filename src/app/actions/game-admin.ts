@@ -139,12 +139,12 @@ export async function createFranchiseSubcategory(formData: FormData) {
     return { error: 'Franchise not found.' };
   }
 
-  const existingSameTitle = franchise.categories.some(
-    (category) => category.title.toLowerCase() === title.toLowerCase()
+  const existingSameTitle = franchise.categories.find(
+    (category) => category.title.trim().toLocaleLowerCase() === title.toLocaleLowerCase()
   );
 
   if (existingSameTitle) {
-    return { error: 'That section already exists for this franchise.' };
+    return { success: true, title: existingSameTitle.title, subcategoryId: existingSameTitle.id };
   }
 
   const newCategory = await prisma.subcategory.create({
@@ -160,6 +160,92 @@ export async function createFranchiseSubcategory(formData: FormData) {
   revalidatePath('/');
 
   return { success: true, title: newCategory.title, subcategoryId: newCategory.id };
+}
+
+export async function renameFranchiseSubcategory(formData: FormData) {
+  await requireGameAdmin();
+
+  const franchiseSlug = String(formData.get('franchiseSlug') ?? '').trim();
+  const subcategoryId = String(formData.get('subcategoryId') ?? '').trim();
+  const title = String(formData.get('title') ?? '').trim();
+  if (!franchiseSlug || !subcategoryId || !title) {
+    throw new Error('A category title and franchise are required.');
+  }
+
+  const category = await prisma.subcategory.findFirst({
+    where: { id: subcategoryId, franchise: { slug: franchiseSlug } },
+  });
+  if (!category) throw new Error('Category not found in this franchise.');
+
+  const duplicate = await prisma.subcategory.findFirst({
+    where: {
+      franchiseId: category.franchiseId,
+      title: { equals: title, mode: 'insensitive' },
+      NOT: { id: category.id },
+    },
+  });
+  if (duplicate) throw new Error('A category with that name already exists.');
+
+  const updated = await prisma.subcategory.update({
+    where: { id: category.id },
+    data: { title },
+  });
+
+  revalidatePath(`/franchises/${franchiseSlug}`);
+  revalidatePath('/franchises');
+  revalidatePath('/');
+  return { success: true, categoryId: updated.id, title: updated.title };
+}
+
+export async function deleteFranchiseSubcategories(formData: FormData) {
+  await requireGameAdmin();
+
+  const franchiseSlug = String(formData.get('franchiseSlug') ?? '').trim();
+  const selectedIds = [...new Set(formData.getAll('subcategoryIds').map(String).map((id) => id.trim()).filter(Boolean))];
+  const destinationId = String(formData.get('destinationId') ?? '').trim();
+
+  if (!franchiseSlug || selectedIds.length === 0) throw new Error('Select at least one category to delete.');
+
+  const franchise = await prisma.franchise.findUnique({
+    where: { slug: franchiseSlug },
+    include: { categories: { select: { id: true } } },
+  });
+  if (!franchise) throw new Error('Franchise not found.');
+  if (selectedIds.length >= franchise.categories.length) {
+    throw new Error('A franchise must keep at least one category.');
+  }
+
+  const destination = await prisma.subcategory.findFirst({
+    where: {
+      id: destinationId,
+      franchiseId: franchise.id,
+      NOT: { id: { in: selectedIds } },
+    },
+  });
+  if (!destination) throw new Error('Choose a remaining category to receive the games.');
+
+  const categoriesToDelete = await prisma.subcategory.findMany({
+    where: { id: { in: selectedIds }, franchiseId: franchise.id },
+    select: { id: true },
+  });
+  if (categoriesToDelete.length !== selectedIds.length) {
+    throw new Error('One or more selected categories do not belong to this franchise.');
+  }
+
+  await prisma.$transaction([
+    prisma.game.updateMany({
+      where: { subcategoryId: { in: selectedIds } },
+      data: { subcategoryId: destination.id },
+    }),
+    prisma.subcategory.deleteMany({
+      where: { id: { in: selectedIds }, franchiseId: franchise.id },
+    }),
+  ]);
+
+  revalidatePath(`/franchises/${franchiseSlug}`);
+  revalidatePath('/franchises');
+  revalidatePath('/');
+  return { success: true, deletedIds: selectedIds, destinationId: destination.id };
 }
 
 export async function updateGameCategory(formData: FormData) {
@@ -341,7 +427,7 @@ export async function importFranchiseGamesCsv(formData: FormData) {
 
   const franchise = await prisma.franchise.findUnique({
     where: { slug: franchiseSlug },
-    include: { categories: true },
+    include: { categories: { include: { games: { select: { id: true } } } } },
   });
   if (!franchise) throw new Error('Franchise not found.');
 
@@ -356,9 +442,20 @@ export async function importFranchiseGamesCsv(formData: FormData) {
 
   const defaultCategory = franchise.categories[0] ?? await prisma.subcategory.create({
     data: { franchiseId: franchise.id, title: 'Mainline & Spin-offs', orderIndex: 0 },
+    include: { games: { select: { id: true } } },
   });
-  let importedCount = 0;
-
+  const categoriesByNormalizedTitle = new Map<string, typeof franchise.categories[number]>();
+  for (const category of franchise.categories) {
+    const key = category.title.trim().toLocaleLowerCase();
+    const current = categoriesByNormalizedTitle.get(key);
+    if (!current || category.games.length > current.games.length ||
+      (category.games.length === current.games.length && category.orderIndex < current.orderIndex)) {
+      categoriesByNormalizedTitle.set(key, category);
+    }
+  }
+  if (!categoriesByNormalizedTitle.has(defaultCategory.title.trim().toLocaleLowerCase())) {
+    categoriesByNormalizedTitle.set(defaultCategory.title.trim().toLocaleLowerCase(), defaultCategory);
+  }
   for (const line of lines.slice(1)) {
     const values = parseCsvLine(line);
     const row = Object.fromEntries(headers.map((header, index) => [header, values[index] ?? '']));
@@ -367,14 +464,25 @@ export async function importFranchiseGamesCsv(formData: FormData) {
     if (!title || Number.isNaN(year)) continue;
 
     const categoryTitle = row.category?.trim() || defaultCategory.title;
-    const category = franchise.categories.find((item) => item.title.toLowerCase() === categoryTitle.toLowerCase())
-      ?? await prisma.subcategory.create({
+    const categoryKey = categoryTitle.toLocaleLowerCase();
+    let category = categoriesByNormalizedTitle.get(categoryKey);
+    if (!category) {
+      category = await prisma.subcategory.findFirst({
+        where: { franchiseId: franchise.id, title: { equals: categoryTitle, mode: 'insensitive' } },
+        include: { games: { select: { id: true } } },
+      }) ?? undefined;
+    }
+    if (!category) {
+      category = await prisma.subcategory.create({
         data: {
           franchiseId: franchise.id,
           title: categoryTitle,
-          orderIndex: franchise.categories.length + importedCount,
+          orderIndex: categoriesByNormalizedTitle.size,
         },
+        include: { games: { select: { id: true } } },
       });
+    }
+    categoriesByNormalizedTitle.set(categoryKey, category);
     const rawgSlug = row.rawgslug?.trim() || null;
     const data = {
       title,
@@ -391,7 +499,6 @@ export async function importFranchiseGamesCsv(formData: FormData) {
     } else {
       await prisma.game.create({ data });
     }
-    importedCount += 1;
   }
 
   revalidatePath(`/franchises/${franchiseSlug}`);

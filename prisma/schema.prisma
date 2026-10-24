@@ -47,6 +47,8 @@ model Subcategory {
   franchiseId String
   franchise   Franchise  @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
   games       Game[]
+
+  @@unique([franchiseId, title])
 }
 
 model Game {
