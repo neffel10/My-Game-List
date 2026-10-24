@@ -88,6 +88,9 @@ export default async function AdminContentPage({ searchParams }: AdminContentPag
           <div className="rounded-full border border-violet-400/30 bg-violet-500/10 px-3 py-1.5 text-xs font-medium uppercase tracking-[0.2em] text-violet-200">
             Admin hub
           </div>
+          <Link href="/admin/evidence" className="rounded-full border border-amber-400/30 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-100 transition hover:bg-amber-500/15">
+            Review evidence
+          </Link>
         </div>
 
         <div className="mb-8 grid gap-4 md:grid-cols-3">

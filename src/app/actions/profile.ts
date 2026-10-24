@@ -12,19 +12,14 @@ export async function equipAvatar(avatarId: string) {
 
   const userId = session.user.id;
 
-  // 1. Validar que el usuario tenga desbloqueado dicho avatar
-  const unlocked = await prisma.userUnlockedAvatar.findUnique({
-    where: {
-      userId_avatarId: {
-        userId,
-        avatarId,
-      },
-    },
-    include: {
-      avatar: true,
-    },
-  });
+  const avatar = await prisma.unlockableAvatar.findUnique({ where: { id: avatarId } });
+  if (!avatar) return { error: 'Avatar not found.' };
 
+  const unlocked = avatar.isFree
+    ? true
+    : await prisma.userUnlockedAvatar.findUnique({
+        where: { userId_avatarId: { userId, avatarId } },
+      });
   if (!unlocked) {
     return { error: 'This avatar is locked. Complete its challenge first!' };
   }
@@ -33,12 +28,12 @@ export async function equipAvatar(avatarId: string) {
   await prisma.user.update({
     where: { id: userId },
     data: {
-      image: unlocked.avatar.imageUrl,
+      image: avatar.imageUrl,
     },
   });
 
   revalidatePath('/profile');
   revalidatePath('/', 'layout');
 
-  return { success: true, imageUrl: unlocked.avatar.imageUrl };
+  return { success: true, imageUrl: avatar.imageUrl };
 }

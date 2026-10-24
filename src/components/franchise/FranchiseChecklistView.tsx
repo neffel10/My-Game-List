@@ -27,11 +27,13 @@ export interface ClientGame {
   title: string;
   year: number;
   rawgSlug?: string | null;
+  awardedPoints?: number;
   platforms?: string[];
   completed: boolean;
   mastered: boolean;
   progressId: string | null;
-  evidenceStatus: 'none' | 'pending' | 'verified' | 'rejected';
+  evidenceStatus: 'none' | 'pending' | 'verified' | 'mastered-approved' | 'rejected';
+  evidenceRejectionReason?: string | null;
 }
 
 export interface ClientCategory {
@@ -310,6 +312,7 @@ export default function FranchiseChecklistView({
             return {
               ...game,
               evidenceStatus: 'pending',
+              evidenceRejectionReason: null,
             };
           }),
         }))
@@ -409,10 +412,10 @@ export default function FranchiseChecklistView({
   const totalGames = allGames.length;
   const masteredCount = allGames.filter((g) => g.mastered).length;
   const completedOnlyCount = allGames.filter((g) => g.completed && !g.mastered).length;
-  const verifiedCount = allGames.filter((g) => g.evidenceStatus === 'verified').length;
+  const verifiedCount = allGames.filter((g) => g.evidenceStatus === 'verified' || g.evidenceStatus === 'mastered-approved').length;
   const unfinishedCount = totalGames - (masteredCount + completedOnlyCount);
 
-  const totalPoints = (completedOnlyCount * 50) + (masteredCount * 120) + (verifiedCount * 25);
+  const totalPoints = allGames.reduce((sum, game) => sum + (game.awardedPoints ?? 0), 0);
 
   const pMastered = totalGames > 0 ? (masteredCount / totalGames) * 100 : 0;
   const pCompleted = totalGames > 0 ? (completedOnlyCount / totalGames) * 100 : 0;
@@ -735,7 +738,13 @@ export default function FranchiseChecklistView({
                                  {game.evidenceStatus === 'verified' && (
                                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-400">
                                      <ShieldCheck className="h-3.5 w-3.5" />
-                                     Verified
+                                     Approved
+                                   </span>
+                                 )}
+                                 {game.evidenceStatus === 'mastered-approved' && (
+                                   <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#FED140]">
+                                     <ShieldCheck className="h-3.5 w-3.5" />
+                                     100% Mastered Approved
                                    </span>
                                  )}
                                  {game.evidenceStatus === 'pending' && (
@@ -778,7 +787,13 @@ export default function FranchiseChecklistView({
                                  {game.evidenceStatus === 'verified' && (
                                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-400">
                                      <ShieldCheck className="h-3.5 w-3.5" />
-                                     Verified
+                                     Approved
+                                   </span>
+                                 )}
+                                 {game.evidenceStatus === 'mastered-approved' && (
+                                   <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#FED140]">
+                                     <ShieldCheck className="h-3.5 w-3.5" />
+                                     100% Mastered Approved
                                    </span>
                                  )}
                                  {game.evidenceStatus === 'pending' && (
@@ -791,7 +806,7 @@ export default function FranchiseChecklistView({
                                    <div className="flex items-center justify-end gap-2">
                                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-red-300">
                                        <AlertTriangle className="h-3.5 w-3.5" />
-                                       Rejected
+                                       <span title={game.evidenceRejectionReason || 'Evidence was rejected.'} className="cursor-help underline decoration-dotted">Rejected</span>
                                      </span>
                                      <button
                                        type="button"
@@ -825,6 +840,30 @@ export default function FranchiseChecklistView({
                                      >
                                        <UploadCloud className="h-3 w-3" />
                                        {uploadingGameId === game.id ? 'Uploading...' : 'Upload'}
+                                     </button>
+                                     <input
+                                       ref={(node) => {
+                                         fileInputRefs.current[game.id] = node;
+                                       }}
+                                       type="file"
+                                       accept="image/png,image/jpeg,image/webp"
+                                       className="hidden"
+                                       onChange={(event) =>
+                                         handleEvidenceUpload(game.id, game.progressId, event.target.files?.[0] ?? null)
+                                       }
+                                     />
+                                   </div>
+                                 )}
+                                 {(game.evidenceStatus === 'verified' || game.evidenceStatus === 'mastered-approved') && (
+                                   <div className="mt-1 flex items-center justify-end gap-2">
+                                     <button
+                                       type="button"
+                                       onClick={() => fileInputRefs.current[game.id]?.click()}
+                                       disabled={uploadingGameId === game.id}
+                                       className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] text-zinc-300 transition hover:bg-white hover:text-black disabled:opacity-50"
+                                     >
+                                       <UploadCloud className="h-3 w-3" />
+                                       {uploadingGameId === game.id ? 'Uploading...' : 'Upload Again'}
                                      </button>
                                      <input
                                        ref={(node) => {

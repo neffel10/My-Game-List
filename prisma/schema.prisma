@@ -4,6 +4,23 @@ datasource db {
   directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
+model PointAward {
+  id          String   @id @default(cuid())
+  userId      String
+  gameId      String
+  type        String
+  points      Int
+  availableAt DateTime
+  creditedAt  DateTime?
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, gameId, type])
+  @@index([userId, availableAt])
+}
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -25,6 +42,7 @@ model User {
   progress      UserGameProgress[]
   unlockedAvatars UserUnlockedAvatar[]
   evidences     EvidenceSubmission[]
+  pointAwards   PointAward[]
 }
 
 model Franchise {
@@ -66,6 +84,7 @@ model Game {
   progress              UserGameProgress[]
   rewardAvatar          UnlockableAvatar?  @relation(fields: [rewardAvatarId], references: [id])
   rewardAvatarId        String?
+  pointAwards           PointAward[]
 }
 
 model GameBlacklist {
@@ -100,8 +119,10 @@ model UnlockableAvatar {
   id             String   @id @default(cuid())
   title          String   // Ej: "Captain Falcon Vintage", "Fire Mario 8-bit"
   imageUrl       String
-  franchiseId    String
-  franchise      Franchise @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
+  franchiseId    String?
+  franchise      Franchise? @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
+  catalogKey     String?  @unique
+  isFree         Boolean  @default(false)
   games          Game[]   // Desbloqueado al completar o masterizar este juego
   requiredMaster Boolean  @default(false) // Si requiere 100% o solo beat
 
@@ -126,6 +147,9 @@ model EvidenceSubmission {
   progressId String           @unique
   imageUrl   String
   status     String           @default("PENDING") // PENDING, APPROVED, REJECTED
+  rejectionReason String?
+  masteredApproved Boolean    @default(false)
+  reviewedAt DateTime?
   createdAt  DateTime         @default(now())
 
   user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)

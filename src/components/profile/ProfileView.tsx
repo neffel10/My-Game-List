@@ -23,6 +23,7 @@ export interface AvatarItem {
   imageUrl: string;
   isUnlocked: boolean;
   requiredMaster: boolean;
+  isFree: boolean;
   franchiseName: string;
   unlockedGameTitle?: string;
 }
@@ -35,6 +36,12 @@ interface ProfileViewProps {
     image: string;
     rank: string;
     totalPoints: number;
+    rankProgress: number;
+    nextRank: string | null;
+    pointsToNextRank: number;
+    rankBadge: string;
+    rankColor: string;
+    pendingPoints: number;
     createdAt: string;
   };
   stats: {
@@ -98,7 +105,7 @@ export default function ProfileView({ user, stats, avatars }: ProfileViewProps) 
                 <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white">
                   {user.gamertag}
                 </h1>
-                <span className="rounded-md border border-yellow-400/30 bg-yellow-400/10 px-3 py-1 text-xs font-mono font-bold tracking-wider text-yellow-300">
+                <span className="rounded-md px-3 py-1 text-xs font-mono font-bold tracking-wider" style={{ color: user.rankColor, border: `1px solid ${user.rankColor}66`, backgroundColor: `${user.rankColor}1a` }}>
                   {user.rank}
                 </span>
               </div>
@@ -111,7 +118,7 @@ export default function ProfileView({ user, stats, avatars }: ProfileViewProps) 
                 <span>•</span>
                 <div className="flex items-center gap-1.5">
                   <Flame className="h-4 w-4 text-orange-400" />
-                  <span>{user.totalPoints} Quest Score</span>
+                  <span>{user.totalPoints} verified Quest Score</span>
                 </div>
               </div>
             </div>
@@ -128,6 +135,35 @@ export default function ProfileView({ user, stats, avatars }: ProfileViewProps) 
               </div>
             </div>
           </div>
+        </section>
+
+        <section className="rounded-2xl border border-[#FED140]/25 bg-zinc-900/40 p-5 sm:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <Trophy className="h-5 w-5" style={{ color: user.rankColor }} />
+                <h2 className="text-lg font-bold text-white">Level progression</h2>
+              </div>
+              <p className="mt-1 text-sm text-zinc-400">
+                {user.rank} · {user.rankBadge} badge · {user.totalPoints} verified points
+              </p>
+            </div>
+            {user.nextRank ? (
+              <p className="text-sm text-zinc-300">
+                <strong className="text-white">{user.pointsToNextRank}</strong> points to {user.nextRank}
+              </p>
+            ) : (
+              <p className="text-sm font-semibold text-violet-200">Maximum rank achieved</p>
+            )}
+          </div>
+          <div className="mt-4 h-3 overflow-hidden rounded-full bg-black/50">
+            <div className="h-full rounded-full transition-all" style={{ width: `${user.rankProgress}%`, backgroundColor: user.rankColor }} />
+          </div>
+          <div className="mt-2 flex justify-between text-xs text-zinc-500">
+            <span>{user.rank}</span>
+            <span>{user.nextRank ?? 'Master'}{user.pendingPoints > 0 ? ` · ${user.pendingPoints} points held until the 24h release` : ''}</span>
+          </div>
+          <p className="mt-3 text-xs text-zinc-500">Approved completion: 100 points · Approved 100% mastery: 50 additional points. Points become available 24 hours after evidence upload.</p>
         </section>
 
         {/* OVERALL STATS BREAKDOWN */}
@@ -218,7 +254,7 @@ export default function ProfileView({ user, stats, avatars }: ProfileViewProps) 
                         {avatar.title}
                       </h4>
                       <p className="mt-1 text-[10px] text-zinc-400">
-                        {avatar.requiredMaster ? 'Require 100% Mastery' : 'Beat Story'}
+                        {avatar.isFree ? 'Free starter avatar' : avatar.requiredMaster ? 'Require 100% Mastery' : 'Beat Story'}
                       </p>
                     </div>
 

@@ -29,6 +29,10 @@ export default async function FranchisePage({ params }: PageProps) {
           games: {
             orderBy: { year: 'asc' },
             include: {
+              pointAwards: {
+                where: { userId: userId ?? '', availableAt: { lte: new Date() } },
+                select: { points: true },
+              },
               progress: userId
                 ? {
                     where: { userId },
@@ -59,13 +63,17 @@ export default async function FranchisePage({ params }: PageProps) {
         const userProg =
           g.progress && g.progress.length > 0
             ? (g.progress[0] as (typeof g.progress)[number] & {
-                evidence?: { status: string } | null;
+                evidence?: { status: string; rejectionReason: string | null; masteredApproved: boolean } | null;
               })
             : null;
 
-        let evidenceStatus: 'none' | 'pending' | 'verified' | 'rejected' = 'none';
+        let evidenceStatus: 'none' | 'pending' | 'verified' | 'mastered-approved' | 'rejected' = 'none';
         if (userProg?.evidence) {
-          evidenceStatus = userProg.evidence.status.toLowerCase() as 'pending' | 'verified' | 'rejected';
+          evidenceStatus = userProg.evidence.status === 'MASTERED_APPROVED'
+            ? 'mastered-approved'
+            : userProg.evidence.status === 'APPROVED'
+              ? 'verified'
+              : userProg.evidence.status.toLowerCase() as 'pending' | 'rejected';
         }
 
           return {
@@ -78,6 +86,8 @@ export default async function FranchisePage({ params }: PageProps) {
           mastered: userProg?.mastered ?? false,
           progressId: userProg?.id ?? null,
           evidenceStatus,
+          evidenceRejectionReason: userProg?.evidence?.rejectionReason ?? null,
+          awardedPoints: g.pointAwards.reduce((sum, award) => sum + award.points, 0),
         };
     }),
   }));

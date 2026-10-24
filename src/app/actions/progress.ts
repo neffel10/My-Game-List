@@ -29,7 +29,7 @@ export async function toggleUserGameProgress(
   }
 
   // Upsert en la tabla UserGameProgress
-  const progress = await prisma.userGameProgress.upsert({
+  await prisma.userGameProgress.upsert({
     where: {
       userId_gameId: {
         userId,
@@ -46,42 +46,7 @@ export async function toggleUserGameProgress(
       completed: nextCompleted,
       mastered: nextMastered,
     },
-    include: {
-      game: {
-        include: {
-          rewardAvatar: true,
-        },
-      },
-    },
   });
-
-  // Verificar si desbloqueó un avatar asociado
-  let unlockedAvatarTitle: string | null = null;
-  const rewardAvatar = progress.game.rewardAvatar;
-
-  if (rewardAvatar) {
-    const meetsCondition = rewardAvatar.requiredMaster ? nextMastered : nextCompleted;
-    if (meetsCondition) {
-      const alreadyUnlocked = await prisma.userUnlockedAvatar.findUnique({
-        where: {
-          userId_avatarId: {
-            userId,
-            avatarId: rewardAvatar.id,
-          },
-        },
-      });
-
-      if (!alreadyUnlocked) {
-        await prisma.userUnlockedAvatar.create({
-          data: {
-            userId,
-            avatarId: rewardAvatar.id,
-          },
-        });
-        unlockedAvatarTitle = rewardAvatar.title;
-      }
-    }
-  }
 
   revalidatePath('/franchises/[slug]', 'page');
 
@@ -89,6 +54,5 @@ export async function toggleUserGameProgress(
     success: true,
     completed: nextCompleted,
     mastered: nextMastered,
-    unlockedAvatarTitle,
   };
 }
