@@ -34,7 +34,7 @@ export default async function HomePage() {
       orderBy: { createdAt: 'desc' },
     }),
     prisma.reward.findMany({
-      where: { isActive: true },
+      where: { isActive: true, deliveryType: { in: ['DIGITAL_DOWNLOAD', 'DIGITAL_CODE'] } },
       orderBy: { pointsRequired: 'asc' },
       take: 3,
     }),
@@ -98,7 +98,7 @@ export default async function HomePage() {
       <Navbar />
 
       <main className="flex-1">
-        <section className="relative overflow-hidden border-b border-[#FED140]/30 bg-gradient-to-b from-[#0e1320] to-[#07090e] py-16 sm:py-24">
+        <section className="relative overflow-hidden border-b border-white/10 bg-gradient-to-b from-[#0e1320] to-[#07090e] py-16 sm:py-24">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:items-center">
               <div className="lg:col-span-7 space-y-6">
@@ -133,7 +133,7 @@ export default async function HomePage() {
                   </Link>
                 </div>
 
-                <div className="grid grid-cols-3 gap-6 pt-6 border-t border-[#FED140]/35 max-w-md">
+                <div className="grid grid-cols-3 gap-6 pt-6 border-t border-white/10 max-w-md">
                   <div>
                     <div className="text-xl font-bold text-white">{franchises.length}</div>
                     <div className="text-xs text-zinc-500">Active sagas</div>
@@ -167,7 +167,7 @@ export default async function HomePage() {
         <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 gap-10 lg:grid-cols-12">
             <div className="lg:col-span-8 space-y-12">
-              <section className="space-y-6 border-t border-[#FED140]/25 pt-6">
+              <section className="space-y-6 border-t border-white/10 pt-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Flame className="h-5 w-5 text-white" />
@@ -229,7 +229,7 @@ export default async function HomePage() {
                 </Link>
               </div>
 
-              <div className="rounded-xl border border-[#FED140]/35 bg-white/[0.02] p-5 space-y-4">
+              <div className="rounded-xl border border-white/10 bg-white/[0.02] p-5 space-y-4">
                 <div className="flex items-center gap-2 text-white">
                   <Clock className="h-4 w-4 text-zinc-400" />
                   <h3 className="text-sm font-semibold tracking-tight">Latest Sagas Added</h3>
@@ -261,7 +261,7 @@ export default async function HomePage() {
         </div>
       </main>
 
-      <footer className="border-t border-[#FED140]/25 bg-[#07090e] py-8 text-center text-xs text-zinc-500">
+      <footer className="border-t border-white/10 bg-[#07090e] py-8 text-center text-xs text-zinc-500">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p>© {new Date().getFullYear()} MyGameList. All game trademarks and fan art belong to their respective creators.</p>
           <div className="flex gap-6">

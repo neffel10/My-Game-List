@@ -13,6 +13,7 @@ import {
   toggleFanArtStatus,
   toggleRewardStatus,
 } from '@/app/actions/content-admin';
+import ImageLightbox from '@/components/shared/ImageLightbox';
 
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? process.env.ADMIN_EMAIL ?? 'admin@mygamelist.local')
   .split(',')
@@ -59,7 +60,6 @@ export default async function AdminContentPage({ searchParams }: AdminContentPag
       orderBy: { createdAt: 'desc' },
     }),
     prisma.reward.findMany({
-      where: { isActive: true },
       orderBy: { pointsRequired: 'asc' },
     }),
     prisma.importTask.findMany({
@@ -397,23 +397,31 @@ export default async function AdminContentPage({ searchParams }: AdminContentPag
               </label>
 
               <label className="flex flex-col gap-2 text-sm text-zinc-300">
-                Reward type
-                <select name="category" defaultValue="PHYSICAL" className="rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-white outline-none focus:border-emerald-400">
-                  <option value="PHYSICAL">Physical</option>
-                  <option value="DIGITAL">Digital</option>
-                  <option value="MERCH">Merch</option>
-                  <option value="VIP">VIP / Access</option>
+                Digital reward type
+                <select name="deliveryType" defaultValue="DIGITAL_DOWNLOAD" className="rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-white outline-none focus:border-emerald-400">
+                  <option value="DIGITAL_DOWNLOAD">Wallpaper / avatar download</option>
+                  <option value="DIGITAL_CODE">Game / digital code</option>
                 </select>
               </label>
 
               <label className="flex flex-col gap-2 text-sm text-zinc-300">
-                External link (optional)
-                <input name="externalLink" placeholder="https://..." className="rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-white outline-none focus:border-emerald-400" />
+                Download stock
+                <input name="stock" type="number" min="1" defaultValue={100} className="rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-white outline-none focus:border-emerald-400" />
               </label>
 
               <label className="flex flex-col gap-2 text-sm text-zinc-300 md:col-span-2">
-                Image file
+                Preview image (watermarked before redemption)
                 <input type="file" name="image" accept="image/*" required className="rounded-xl border border-dashed border-white/15 bg-black/20 px-3 py-3 text-zinc-300 file:mr-3 file:rounded-md file:border-0 file:bg-emerald-500/15 file:px-3 file:py-2 file:text-emerald-200" />
+              </label>
+
+              <label className="flex flex-col gap-2 text-sm text-zinc-300">
+                Full-resolution digital image (required for downloads)
+                <input type="file" name="digitalFile" accept="image/*" className="rounded-xl border border-dashed border-white/15 bg-black/20 px-3 py-3 text-zinc-300 file:mr-3 file:rounded-md file:border-0 file:bg-emerald-500/15 file:px-3 file:py-2 file:text-emerald-200" />
+              </label>
+
+              <label className="flex flex-col gap-2 text-sm text-zinc-300">
+                Digital codes (for code rewards, one per line)
+                <textarea name="digitalCodes" rows={3} maxLength={50000} placeholder="XXXX-XXXX-XXXX" className="rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 font-mono text-sm text-white outline-none focus:border-emerald-400" />
               </label>
 
               <div className="md:col-span-2 flex justify-end">
@@ -427,7 +435,12 @@ export default async function AdminContentPage({ searchParams }: AdminContentPag
               {rewards.map((reward) => (
                 <div key={reward.id} className="overflow-hidden rounded-xl border border-white/10 bg-black/20">
                   <div className="relative h-32 w-full">
-                    <Image src={reward.imageUrl} alt={reward.title} fill unoptimized sizes="(max-width: 768px) 100vw, 50vw" className="object-cover" />
+                    <ImageLightbox
+                      src={reward.imageUrl}
+                      alt={`${reward.title} preview`}
+                      className="h-full w-full"
+                      sizes="(max-width: 768px) 100vw, 50vw"
+                    />
                   </div>
                   <div className="space-y-2 p-3">
                     <div className="flex items-center justify-between gap-2">
@@ -441,7 +454,7 @@ export default async function AdminContentPage({ searchParams }: AdminContentPag
                     </div>
                     <div className="flex items-center justify-between gap-2 text-xs text-zinc-300">
                       <span>{reward.pointsRequired} pts</span>
-                      <span>Stock: {reward.stock}</span>
+                      <span>{reward.deliveryType} · Stock: {reward.stock}</span>
                     </div>
                     <form action={toggleRewardStatus.bind(null, reward.id, !reward.isActive)}>
                       <button type="submit" className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-zinc-200 hover:bg-white/10">

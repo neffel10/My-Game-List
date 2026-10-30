@@ -1,13 +1,34 @@
-import Image from 'next/image';
 import Link from 'next/link';
 import Navbar from '@/components/layout/Navbar';
 import { prisma } from '@/lib/prisma';
+import { auth } from '@/auth';
+import RewardCard from '@/components/rewards/RewardCard';
 
 export default async function RewardsPage() {
+  const session = await auth();
+  const userId = session?.user?.id;
   const rewards = await prisma.reward.findMany({
-    where: { isActive: true },
+    where: { isActive: true, deliveryType: { in: ['DIGITAL_DOWNLOAD', 'DIGITAL_CODE'] } },
     orderBy: { pointsRequired: 'asc' },
   });
+  const [earnedPoints, spentPoints, redemptions] = userId
+    ? await Promise.all([
+        prisma.pointAward.aggregate({
+          where: { userId, availableAt: { lte: new Date() } },
+          _sum: { points: true },
+        }),
+        prisma.rewardRedemption.aggregate({
+          where: { userId },
+          _sum: { pointsSpent: true },
+        }),
+        prisma.rewardRedemption.findMany({
+          where: { userId },
+          select: { rewardId: true },
+        }),
+      ])
+    : [null, null, []];
+  const pointsBalance = Math.max(0, (earnedPoints?._sum.points ?? 0) - (spentPoints?._sum.pointsSpent ?? 0));
+  const redeemedRewardIds = new Set(redemptions.map((redemption) => redemption.rewardId));
 
   return (
     <div className="min-h-screen bg-[#07090e] text-zinc-100">
@@ -17,59 +38,47 @@ export default async function RewardsPage() {
         <div className="mb-8 flex items-center justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">Rewards</p>
-            <h1 className="mt-2 text-4xl font-bold tracking-tight text-white">Earned prizes</h1>
+            <h1 className="mt-2 text-4xl font-bold tracking-tight text-white">Digital rewards</h1>
           </div>
-          <Link href="/franchises" className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-zinc-200 hover:bg-white/10">
-            Explore sagas
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            {userId && (
+              <Link href="/rewards/my" className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-zinc-200 hover:bg-white/10">
+                My rewards
+              </Link>
+            )}
+            <Link href="/franchises" className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-zinc-200 hover:bg-white/10">
+              Explore sagas
+            </Link>
+          </div>
         </div>
+        <p className="mb-6 text-sm text-zinc-400">
+          Redeem points instantly for digital downloads and codes. Physical rewards are not available yet.
+          {userId && <span className="ml-2 font-semibold text-white">Your balance: {pointsBalance} pts</span>}
+        </p>
 
         {rewards.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-white/15 bg-zinc-900/60 p-10 text-center text-zinc-400">
-            No rewards are available yet. The admin can add new prizes here.
+            No digital rewards are available yet.
           </div>
         ) : (
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
             {rewards.map((reward) => (
-              <article key={reward.id} className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-900/70 shadow-xl">
-                <div className="relative h-52 w-full bg-zinc-800">
-                  <Image src={reward.imageUrl} alt={reward.title} fill unoptimized sizes="(max-width: 768px) 100vw, 33vw" className="object-cover" />
-                </div>
-                <div className="space-y-4 p-5">
-                  <div className="flex items-center justify-between gap-2">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">{reward.category}</p>
-                      <h2 className="mt-1 text-xl font-semibold text-white">{reward.title}</h2>
-                    </div>
-                    <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-200">
-                      {reward.pointsRequired} pts
-                    </span>
-                  </div>
-
-                  <div className="rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-zinc-300">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-zinc-400">Sponsor</span>
-                      <span className="font-medium text-white">{reward.company}</span>
-                    </div>
-                    <div className="mt-2 flex items-center justify-between gap-2">
-                      <span className="text-zinc-400">Stock</span>
-                      <span className="font-medium text-white">{reward.stock}</span>
-                    </div>
-                  </div>
-
-                  {reward.description && <p className="text-sm text-zinc-400">{reward.description}</p>}
-
-                  {reward.externalLink ? (
-                    <a href={reward.externalLink} target="_blank" rel="noreferrer" className="inline-flex rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-white hover:bg-white/10">
-                      View reward
-                    </a>
-                  ) : (
-                    <div className="inline-flex rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-zinc-300">
-                      Prize available on request
-                    </div>
-                  )}
-                </div>
-              </article>
+              <RewardCard
+                key={reward.id}
+                reward={{
+                  id: reward.id,
+                  title: reward.title,
+                  company: reward.company,
+                  imageUrl: reward.imageUrl,
+                  description: reward.description,
+                  pointsRequired: reward.pointsRequired,
+                  stock: reward.stock,
+                  deliveryType: reward.deliveryType as 'DIGITAL_DOWNLOAD' | 'DIGITAL_CODE',
+                }}
+                pointsBalance={pointsBalance}
+                isSignedIn={Boolean(userId)}
+                isRedeemed={redeemedRewardIds.has(reward.id)}
+              />
             ))}
           </div>
         )}

@@ -1,4 +1,3 @@
-import Image from 'next/image';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { ArrowLeft, ImageIcon, ShieldAlert, ShieldCheck } from 'lucide-react';
@@ -8,6 +7,7 @@ import {
   approveEvidenceSubmission,
   rejectEvidenceSubmission,
 } from '@/app/actions/evidence';
+import ImageLightbox from '@/components/shared/ImageLightbox';
 
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? process.env.ADMIN_EMAIL ?? 'admin@mygamelist.local')
   .split(',')
@@ -123,16 +123,13 @@ export default async function AdminEvidencePage() {
                 >
                   <div className="grid gap-5 p-5 lg:grid-cols-[1.2fr_1fr]">
                     <div className="overflow-hidden rounded-xl border border-white/10 bg-black/40">
-                      <div className="relative h-72 w-full overflow-hidden">
-                        <Image
-                          src={submission.imageUrl}
-                          alt={`${submission.user.gamertag} proof for ${game.title}`}
-                          fill
-                          sizes="(max-width: 1024px) 100vw, 720px"
-                          unoptimized
-                          className="object-contain"
-                        />
-                      </div>
+                      <ImageLightbox
+                        src={submission.imageUrl}
+                        alt={`${submission.user.gamertag} proof for ${game.title}`}
+                        className="h-72 w-full"
+                        imageClassName="object-contain"
+                        sizes="(max-width: 1024px) 100vw, 720px"
+                      />
                     </div>
 
                     <div className="space-y-4">
@@ -148,7 +145,7 @@ export default async function AdminEvidencePage() {
                         <div className="text-xs uppercase tracking-[0.2em] text-zinc-500">Game</div>
                         <div className="mt-2 text-lg font-semibold text-white">{game.title}</div>
                         <div className="text-sm text-zinc-400">{franchise.name}</div>
-                        <div className="mt-2 inline-flex rounded-full border border-[#FED140]/30 bg-[#FED140]/10 px-2.5 py-1 text-[11px] font-semibold text-[#FED140]">
+                        <div className="mt-2 inline-flex rounded-full border border-white/15 bg-[#FED140]/10 px-2.5 py-1 text-[11px] font-semibold text-[#FED140]">
                           {submission.masteryRequested ? '100% mastery proof' : 'Completion proof'}
                         </div>
                       </div>

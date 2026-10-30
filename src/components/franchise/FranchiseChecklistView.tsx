@@ -310,7 +310,11 @@ export default function FranchiseChecklistView({
     const result = await uploadEvidence(formData);
 
     if (result?.error) {
-      setUploadError(result.error);
+      if ('code' in result && result.code === 'DAILY_UPLOAD_LIMIT') {
+        window.alert(result.error);
+      } else {
+        setUploadError(result.error);
+      }
     } else {
       setCategories((prev) =>
         prev.map((cat) => ({
@@ -549,7 +553,7 @@ export default function FranchiseChecklistView({
                     type="button"
                     onClick={toggleSelectAllVisible}
                     disabled={allVisibleGameIds.length === 0}
-                    className="inline-flex items-center gap-2 rounded-lg border border-[#FED140]/40 bg-[#FED140]/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-[#FED140] transition hover:bg-[#FED140]/20 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-[#FED140]/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-[#FED140] transition hover:bg-[#FED140]/20 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <input type="checkbox" readOnly checked={allVisibleSelected} className="h-3.5 w-3.5 accent-[#FED140]" />
                     {allVisibleSelected ? 'Unselect all' : 'Select all'}
@@ -570,7 +574,7 @@ export default function FranchiseChecklistView({
                       setCategoryActionError(null);
                       setShowCategoryManager(true);
                     }}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-zinc-200 transition hover:border-[#FED140]/40 hover:text-[#FED140]"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-zinc-200 transition hover:border-white/25 hover:text-[#FED140]"
                   >
                     <Layers className="h-3.5 w-3.5" />
                     Manage categories
@@ -731,7 +735,7 @@ export default function FranchiseChecklistView({
                             <td className="py-3 pr-4 sm:pr-6 text-right">
                              {isAdmin ? (
                                <div className="flex items-center justify-end gap-2">
-                                 <button type="button" onClick={() => setEditingGameId(editingGameId === game.id ? null : game.id)} className="rounded-md border border-[#FED140]/35 bg-[#FED140]/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#FED140] hover:bg-[#FED140]/20">
+                                 <button type="button" onClick={() => setEditingGameId(editingGameId === game.id ? null : game.id)} className="rounded-md border border-white/15 bg-[#FED140]/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#FED140] hover:bg-[#FED140]/20">
                                    {editingGameId === game.id ? 'Close' : 'Edit'}
                                  </button>
                                  <select
@@ -1078,7 +1082,7 @@ export default function FranchiseChecklistView({
 
       {showCategoryManager && isAdmin && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 px-4 py-6" role="presentation">
-          <section role="dialog" aria-modal="true" aria-labelledby="category-manager-title" className="max-h-full w-full max-w-2xl overflow-y-auto rounded-2xl border border-[#FED140]/25 bg-zinc-900 p-5 shadow-2xl sm:p-6">
+          <section role="dialog" aria-modal="true" aria-labelledby="category-manager-title" className="max-h-full w-full max-w-2xl overflow-y-auto rounded-2xl border border-white/10 bg-zinc-900 p-5 shadow-2xl sm:p-6">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#FED140]">Admin tools</p>
@@ -1102,7 +1106,7 @@ export default function FranchiseChecklistView({
                   onChange={(event) => setNewCategoryTitle(event.target.value)}
                   placeholder="Category name"
                   maxLength={80}
-                  className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-[#FED140]/50"
+                  className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-white/40"
                 />
                 <button
                   type="button"
@@ -1141,13 +1145,13 @@ export default function FranchiseChecklistView({
                     value={categoryNameDrafts[category.id] ?? category.title}
                     onChange={(event) => setCategoryNameDrafts((previous) => ({ ...previous, [category.id]: event.target.value }))}
                     aria-label={`Category name: ${category.title}`}
-                    className="min-w-0 rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-[#FED140]/50"
+                    className="min-w-0 rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-white/40"
                   />
                   <button
                     type="button"
                     onClick={() => void handleRenameCategory(category.id)}
                     disabled={categoryActionPending || !categoryNameDrafts[category.id]?.trim() || categoryNameDrafts[category.id]?.trim() === category.title}
-                    className="rounded-lg border border-[#FED140]/30 bg-[#FED140]/10 px-3 py-2 text-xs font-semibold text-[#FED140] hover:bg-[#FED140]/20 disabled:opacity-35"
+                    className="rounded-lg border border-white/15 bg-[#FED140]/10 px-3 py-2 text-xs font-semibold text-[#FED140] hover:bg-[#FED140]/20 disabled:opacity-35"
                   >
                     Save name
                   </button>

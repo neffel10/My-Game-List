@@ -60,7 +60,10 @@ export async function uploadEvidence(formData: FormData) {
     data: { count: { increment: 1 } },
   });
   if (quotaReservation.count === 0) {
-    return { error: 'You have reached the limit of 3 evidence uploads for today. Please try again tomorrow.' };
+    return {
+      error: 'Daily upload limit reached. You can upload up to 3 evidence images per day. Please try again tomorrow.',
+      code: 'DAILY_UPLOAD_LIMIT' as const,
+    };
   }
 
   let imageUrl: string;

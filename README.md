@@ -42,3 +42,10 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 - Vercel Hobby runs `/api/cron/auto-approve-evidence` daily at 00:00 UTC. Pending evidence older than 72 hours is automatically approved for the 100 completion points at the next run (up to about 25 hours after the 72-hour mark due to Hobby scheduling precision); the 100% bonus remains manual.
 - Configure a strong `CRON_SECRET` in the Vercel project environment variables. Vercel uses it to authorize scheduled requests. The scheduled job will not run successfully if the secret is missing.
 - Apply the updated Prisma schema to the intended database before deployment, for example with `npx prisma db push` after verifying `DATABASE_URL` points to the correct environment.
+
+## Digital reward redemptions
+
+- The public rewards catalog only lists active digital downloads and digital codes. Physical rewards remain unavailable until checkout and shipping are implemented.
+- Downloads and one-time codes are automatically redeemed using the user's available points. Each account can redeem a reward once; codes are assigned from a private inventory.
+- Users can retrieve their codes and downloads from `/rewards/my`. Download routes verify the signed-in user owns the redemption before streaming the asset.
+- Reward previews are watermarked and include basic right-click prevention. This deters casual copying but cannot prevent screenshots or browser developer-tools access; the downloadable original is never rendered in the public catalog.

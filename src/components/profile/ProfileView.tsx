@@ -136,7 +136,7 @@ export default function ProfileView({ user, stats, avatars }: ProfileViewProps) 
           </div>
         </section>
 
-        <section className="rounded-2xl border border-[#FED140]/25 bg-zinc-900/40 p-5 sm:p-6">
+        <section className="rounded-2xl border border-white/10 bg-zinc-900/40 p-5 sm:p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">

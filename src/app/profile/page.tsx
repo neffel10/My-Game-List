@@ -77,11 +77,20 @@ export default async function ProfilePage() {
     where: { userId, creditedAt: null, availableAt: { lte: now } },
     data: { creditedAt: now },
   });
-  const creditedAwards = await prisma.pointAward.aggregate({
-    where: { userId, availableAt: { lte: now } },
-    _sum: { points: true },
-  });
-  const totalPoints = creditedAwards._sum.points ?? 0;
+  const [creditedAwards, redeemedRewards] = await Promise.all([
+    prisma.pointAward.aggregate({
+      where: { userId, availableAt: { lte: now } },
+      _sum: { points: true },
+    }),
+    prisma.rewardRedemption.aggregate({
+      where: { userId },
+      _sum: { pointsSpent: true },
+    }),
+  ]);
+  const totalPoints = Math.max(
+    0,
+    (creditedAwards._sum.points ?? 0) - (redeemedRewards._sum.pointsSpent ?? 0),
+  );
   const rankProgress = getRankProgress(totalPoints);
   const rank = rankProgress.current.name.toUpperCase();
 

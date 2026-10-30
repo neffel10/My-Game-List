@@ -373,46 +373,58 @@ export async function saveReward(formData: FormData) {
     const title = String(formData.get('title') ?? '').trim();
     const company = String(formData.get('company') ?? '').trim();
     const description = String(formData.get('description') ?? '').trim();
-    const category = String(formData.get('category') ?? 'PHYSICAL').trim();
+    const deliveryType = String(formData.get('deliveryType') ?? '');
     const pointsRequired = Number(formData.get('pointsRequired') ?? 0);
     const stock = Number(formData.get('stock') ?? 1);
-    const externalLink = String(formData.get('externalLink') ?? '').trim();
     const imageFile = formData.get('image');
+    const digitalFile = formData.get('digitalFile');
+    const codeText = String(formData.get('digitalCodes') ?? '');
+    const digitalCodes = [...new Set(codeText.split(/\r?\n/).map((code) => code.trim()).filter(Boolean))];
 
-    console.log('[saveReward]', {
-      title,
-      company,
-      pointsRequired,
-      category,
-      hasImage: imageFile instanceof File,
-      imageName: imageFile instanceof File ? imageFile.name : null,
-      imageSize: imageFile instanceof File ? imageFile.size : null,
-    });
-
-    if (!title || !company || !(imageFile instanceof File) || !Number.isFinite(pointsRequired) || pointsRequired <= 0) {
-      console.error('[saveReward validation failed]', {
-        title,
-        company,
-        pointsRequired,
-        hasImage: imageFile instanceof File,
-      });
-      throw new Error('Reward validation failed.');
+    if (!title || !company || !(imageFile instanceof File) || !Number.isInteger(pointsRequired) || pointsRequired <= 0) {
+      throw new Error('Enter a title, sponsor, preview image, and positive whole-number point cost.');
+    }
+    if (deliveryType !== 'DIGITAL_DOWNLOAD' && deliveryType !== 'DIGITAL_CODE') {
+      throw new Error('Only digital downloads and digital codes can be added as rewards.');
+    }
+    if (deliveryType === 'DIGITAL_DOWNLOAD' && !(digitalFile instanceof File)) {
+      throw new Error('Select the digital image file users will receive after redemption.');
+    }
+    if (deliveryType === 'DIGITAL_CODE' && (digitalCodes.length === 0 || digitalCodes.length > 1000)) {
+      throw new Error('Add between 1 and 1,000 unique digital codes, one per line.');
+    }
+    if (deliveryType === 'DIGITAL_DOWNLOAD' && (!Number.isInteger(stock) || stock < 1)) {
+      throw new Error('Digital download stock must be a positive whole number.');
     }
 
-    const imageUrl = await uploadImageToBlob(imageFile, 'rewards', MAX_IMAGE_SIZE);
+    const [imageUrl, digitalAssetUrl] = await Promise.all([
+      uploadImageToBlob(imageFile, 'rewards/previews', MAX_IMAGE_SIZE),
+      deliveryType === 'DIGITAL_DOWNLOAD' && digitalFile instanceof File
+        ? uploadImageToBlob(digitalFile, 'rewards/digital', MAX_IMAGE_SIZE)
+        : Promise.resolve(null),
+    ]);
 
-    await prisma.reward.create({
-      data: {
-        title,
-        company,
-        description: description || null,
-        imageUrl,
-        pointsRequired,
-        stock: Number.isFinite(stock) && stock > 0 ? stock : 1,
-        category: category || 'PHYSICAL',
-        isActive: true,
-        externalLink: externalLink || null,
-      },
+    await prisma.$transaction(async (tx) => {
+      const reward = await tx.reward.create({
+        data: {
+          title,
+          company,
+          description: description || null,
+          imageUrl,
+          pointsRequired,
+          stock: deliveryType === 'DIGITAL_CODE' ? digitalCodes.length : stock,
+          category: 'DIGITAL',
+          deliveryType,
+          digitalAssetUrl,
+          isActive: true,
+        },
+      });
+
+      if (deliveryType === 'DIGITAL_CODE') {
+        await tx.rewardDigitalCode.createMany({
+          data: digitalCodes.map((code) => ({ rewardId: reward.id, code })),
+        });
+      }
     });
 
     revalidatePath('/');

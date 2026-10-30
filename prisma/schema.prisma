@@ -4,6 +4,12 @@ datasource db {
   directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
+enum RewardDeliveryType {
+  PHYSICAL
+  DIGITAL_DOWNLOAD
+  DIGITAL_CODE
+}
+
 model PointAward {
   id          String   @id @default(cuid())
   userId      String
@@ -44,6 +50,7 @@ model User {
   evidences     EvidenceSubmission[]
   pointAwards   PointAward[]
   evidenceUploadQuotas DailyEvidenceUploadQuota[]
+  rewardRedemptions RewardRedemption[]
 }
 
 model Franchise {
@@ -189,20 +196,50 @@ model FanArtSubmission {
 }
 
 model Reward {
-  id            String   @id @default(cuid())
-  title         String
-  company       String
-  imageUrl      String
-  description   String?
-  pointsRequired Int
-  stock         Int      @default(1)
-  category      String   @default("PHYSICAL")
-  isActive      Boolean  @default(true)
-  externalLink  String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id              String             @id @default(cuid())
+  title           String
+  company         String
+  imageUrl        String
+  description     String?
+  pointsRequired  Int
+  stock           Int                @default(1)
+  category        String             @default("DIGITAL")
+  deliveryType    RewardDeliveryType @default(PHYSICAL)
+  digitalAssetUrl String?
+  isActive        Boolean            @default(true)
+  externalLink    String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  digitalCodes    RewardDigitalCode[]
+  redemptions     RewardRedemption[]
 
-  @@index([isActive])
+  @@index([isActive, deliveryType])
+}
+
+model RewardRedemption {
+  id            String   @id @default(cuid())
+  userId        String
+  rewardId      String
+  pointsSpent   Int
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reward        Reward   @relation(fields: [rewardId], references: [id], onDelete: Restrict)
+  digitalCode   RewardDigitalCode?
+
+  @@unique([userId, rewardId])
+  @@index([userId, createdAt])
+}
+
+model RewardDigitalCode {
+  id           String  @id @default(cuid())
+  rewardId     String
+  code         String
+  redemptionId String? @unique
+  reward       Reward  @relation(fields: [rewardId], references: [id], onDelete: Cascade)
+  redemption   RewardRedemption? @relation(fields: [redemptionId], references: [id], onDelete: SetNull)
+
+  @@unique([rewardId, code])
+  @@index([rewardId, redemptionId])
 }
 
 model ImportTask {
