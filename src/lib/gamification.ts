@@ -22,11 +22,6 @@ export function getRankProgress(points: number) {
   };
 }
 
-export function getEvidencePointsAvailableAt(submittedAt: Date, reviewedAt: Date) {
-  const delayExpiresAt = submittedAt.getTime() + 24 * 60 * 60 * 1000;
-  return new Date(Math.max(delayExpiresAt, reviewedAt.getTime()));
-}
-
 export const FREE_AVATARS = Array.from({ length: 10 }, (_, index) => ({
   catalogKey: `free-generic-${String(index + 1).padStart(2, '0')}`,
   title: `Starter Avatar ${String(index + 1).padStart(2, '0')}`,

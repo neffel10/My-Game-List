@@ -30,7 +30,7 @@ export default async function FranchisePage({ params }: PageProps) {
             orderBy: { year: 'asc' },
             include: {
               pointAwards: {
-                where: { userId: userId ?? '', availableAt: { lte: new Date() } },
+                where: { userId: userId ?? '' },
                 select: { points: true },
               },
               progress: userId
@@ -63,8 +63,13 @@ export default async function FranchisePage({ params }: PageProps) {
         const userProg =
           g.progress && g.progress.length > 0
             ? (g.progress[0] as (typeof g.progress)[number] & {
-                evidence?: { status: string; rejectionReason: string | null; masteredApproved: boolean } | null;
-              })
+              evidence?: {
+                status: string;
+                rejectionReason: string | null;
+                masteredApproved: boolean;
+                masteryRequested: boolean;
+              } | null;
+            })
             : null;
 
         let evidenceStatus: 'none' | 'pending' | 'verified' | 'mastered-approved' | 'rejected' = 'none';
@@ -86,6 +91,7 @@ export default async function FranchisePage({ params }: PageProps) {
           mastered: userProg?.mastered ?? false,
           progressId: userProg?.id ?? null,
           evidenceStatus,
+          masteryRequested: userProg?.evidence?.masteryRequested ?? false,
           evidenceRejectionReason: userProg?.evidence?.rejectionReason ?? null,
           awardedPoints: g.pointAwards.reduce((sum, award) => sum + award.points, 0),
         };

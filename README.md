@@ -34,3 +34,11 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Evidence rewards and moderation
+
+- Users can submit up to 3 successful evidence uploads per UTC day.
+- Approved completion evidence grants 100 points immediately. A separate 100% mastery proof must be manually approved for the additional 50 points.
+- Vercel Hobby runs `/api/cron/auto-approve-evidence` daily at 00:00 UTC. Pending evidence older than 72 hours is automatically approved for the 100 completion points at the next run (up to about 25 hours after the 72-hour mark due to Hobby scheduling precision); the 100% bonus remains manual.
+- Configure a strong `CRON_SECRET` in the Vercel project environment variables. Vercel uses it to authorize scheduled requests. The scheduled job will not run successfully if the secret is missing.
+- Apply the updated Prisma schema to the intended database before deployment, for example with `npx prisma db push` after verifying `DATABASE_URL` points to the correct environment.

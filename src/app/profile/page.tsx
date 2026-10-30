@@ -70,19 +70,17 @@ export default async function ProfilePage() {
   const totalVerified = approvedProgress.length;
   const now = new Date();
   await prisma.pointAward.updateMany({
+    where: { userId, creditedAt: null, availableAt: { gt: now } },
+    data: { availableAt: now },
+  });
+  await prisma.pointAward.updateMany({
     where: { userId, creditedAt: null, availableAt: { lte: now } },
     data: { creditedAt: now },
   });
-  const [creditedAwards, pendingAwards] = await Promise.all([
-    prisma.pointAward.aggregate({
-      where: { userId, availableAt: { lte: now } },
-      _sum: { points: true },
-    }),
-    prisma.pointAward.aggregate({
-      where: { userId, availableAt: { gt: now } },
-      _sum: { points: true },
-    }),
-  ]);
+  const creditedAwards = await prisma.pointAward.aggregate({
+    where: { userId, availableAt: { lte: now } },
+    _sum: { points: true },
+  });
   const totalPoints = creditedAwards._sum.points ?? 0;
   const rankProgress = getRankProgress(totalPoints);
   const rank = rankProgress.current.name.toUpperCase();
@@ -103,7 +101,6 @@ export default async function ProfilePage() {
     pointsToNextRank: rankProgress.pointsToNext,
     rankBadge: rankProgress.current.badge,
     rankColor: rankProgress.current.color,
-    pendingPoints: pendingAwards._sum.points ?? 0,
     createdAt: new Date(user.createdAt).toLocaleDateString('en-US', {
       month: 'short',
       year: 'numeric',

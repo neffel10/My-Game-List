@@ -43,6 +43,7 @@ model User {
   unlockedAvatars UserUnlockedAvatar[]
   evidences     EvidenceSubmission[]
   pointAwards   PointAward[]
+  evidenceUploadQuotas DailyEvidenceUploadQuota[]
 }
 
 model Franchise {
@@ -148,12 +149,25 @@ model EvidenceSubmission {
   imageUrl   String
   status     String           @default("PENDING") // PENDING, APPROVED, REJECTED
   rejectionReason String?
+  masteryRequested Boolean    @default(false)
   masteredApproved Boolean    @default(false)
   reviewedAt DateTime?
   createdAt  DateTime         @default(now())
 
   user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   progress   UserGameProgress @relation(fields: [progressId], references: [id], onDelete: Cascade)
+}
+
+model DailyEvidenceUploadQuota {
+  id      String @id @default(cuid())
+  userId  String
+  dateKey String
+  count   Int    @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dateKey])
+  @@index([dateKey])
 }
 
 model FanArtSubmission {

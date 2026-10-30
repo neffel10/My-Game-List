@@ -41,7 +41,6 @@ interface ProfileViewProps {
     pointsToNextRank: number;
     rankBadge: string;
     rankColor: string;
-    pendingPoints: number;
     createdAt: string;
   };
   stats: {
@@ -161,9 +160,9 @@ export default function ProfileView({ user, stats, avatars }: ProfileViewProps) 
           </div>
           <div className="mt-2 flex justify-between text-xs text-zinc-500">
             <span>{user.rank}</span>
-            <span>{user.nextRank ?? 'Master'}{user.pendingPoints > 0 ? ` · ${user.pendingPoints} points held until the 24h release` : ''}</span>
+            <span>{user.nextRank ?? 'Master'}</span>
           </div>
-          <p className="mt-3 text-xs text-zinc-500">Approved completion: 100 points · Approved 100% mastery: 50 additional points. Points become available 24 hours after evidence upload.</p>
+          <p className="mt-3 text-xs text-zinc-500">Approved completion: 100 points · Approved 100% mastery: 50 additional points. Points are available immediately after approval.</p>
         </section>
 
         {/* OVERALL STATS BREAKDOWN */}

@@ -32,6 +32,7 @@ export interface ClientGame {
   completed: boolean;
   mastered: boolean;
   progressId: string | null;
+  masteryRequested?: boolean;
   evidenceStatus: 'none' | 'pending' | 'verified' | 'mastered-approved' | 'rejected';
   evidenceRejectionReason?: string | null;
 }
@@ -68,6 +69,7 @@ export default function FranchiseChecklistView({
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadingGameId, setUploadingGameId] = useState<string | null>(null);
+  const [evidenceTypeByGame, setEvidenceTypeByGame] = useState<Record<string, 'COMPLETION' | 'MASTERED'>>({});
   const [deletingGames, setDeletingGames] = useState(false);
   const [newCategoryTitle, setNewCategoryTitle] = useState('');
   const [creatingCategory, setCreatingCategory] = useState(false);
@@ -272,7 +274,12 @@ export default function FranchiseChecklistView({
     );
   };
 
-  const handleEvidenceUpload = async (gameId: string, progressId: string | null, file: File | null) => {
+  const handleEvidenceUpload = async (
+    gameId: string,
+    progressId: string | null,
+    file: File | null,
+    evidenceType: 'COMPLETION' | 'MASTERED',
+  ) => {
     if (!file || !progressId) {
       setUploadError('Please complete the game first so the evidence can be attached to it.');
       return;
@@ -298,6 +305,7 @@ export default function FranchiseChecklistView({
     const formData = new FormData();
     formData.append('progressId', progressId);
     formData.append('file', nextFile);
+    formData.append('evidenceType', evidenceType);
 
     const result = await uploadEvidence(formData);
 
@@ -312,6 +320,7 @@ export default function FranchiseChecklistView({
             return {
               ...game,
               evidenceStatus: 'pending',
+              masteryRequested: evidenceType === 'MASTERED',
               evidenceRejectionReason: null,
             };
           }),
@@ -508,6 +517,9 @@ export default function FranchiseChecklistView({
                 {uploadError}
               </div>
             )}
+            <p className="text-xs text-zinc-500">
+              Up to 3 successful evidence uploads per UTC day. Approved evidence grants points immediately; pending completion proof is auto-approved after 72 hours, while the 100% bonus always needs manual review.
+            </p>
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.08] pb-4">
               <div className="flex items-center gap-2">
@@ -741,6 +753,9 @@ export default function FranchiseChecklistView({
                                      Approved
                                    </span>
                                  )}
+                                 {game.evidenceStatus === 'verified' && game.masteryRequested && (
+                                   <span className="text-[10px] text-amber-300">100% review pending</span>
+                                 )}
                                  {game.evidenceStatus === 'mastered-approved' && (
                                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#FED140]">
                                      <ShieldCheck className="h-3.5 w-3.5" />
@@ -756,31 +771,48 @@ export default function FranchiseChecklistView({
                                  {game.evidenceStatus === 'rejected' && (
                                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-red-300">
                                      <AlertTriangle className="h-3.5 w-3.5" />
-                                     Rejected
+                                     <span title={game.evidenceRejectionReason || 'Evidence was rejected.'} className="cursor-help underline decoration-dotted">Rejected</span>
                                    </span>
                                  )}
-                                 {game.evidenceStatus === 'none' && (
+                                 <div className="flex items-center gap-1.5">
+                                   <select
+                                     value={evidenceTypeByGame[game.id] ?? (game.masteryRequested ? 'MASTERED' : 'COMPLETION')}
+                                     onChange={(event) => setEvidenceTypeByGame((current) => ({
+                                       ...current,
+                                       [game.id]: event.target.value === 'MASTERED' ? 'MASTERED' : 'COMPLETION',
+                                     }))}
+                                     aria-label={`Evidence type for ${game.title}`}
+                                     className="max-w-40 rounded-md border border-white/10 bg-zinc-950 px-2 py-1 text-[10px] text-zinc-200"
+                                   >
+                                     <option value="COMPLETION">Completion · 100 pts</option>
+                                     <option value="MASTERED" disabled={!game.mastered}>100% Mastery · +50 pts</option>
+                                   </select>
                                    <button
                                      type="button"
                                      onClick={() => fileInputRefs.current[game.id]?.click()}
-                                     disabled={uploadingGameId === game.id}
-                                     className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] text-zinc-300 transition hover:bg-white hover:text-black hover:border-white disabled:cursor-not-allowed disabled:opacity-50"
+                                     disabled={uploadingGameId === game.id || (!game.progressId)}
+                                     className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] text-zinc-300 transition hover:bg-white hover:text-black disabled:cursor-not-allowed disabled:opacity-50"
                                    >
                                      <UploadCloud className="h-3 w-3" />
                                      {uploadingGameId === game.id ? 'Uploading...' : 'Upload'}
                                    </button>
-                                 )}
-                                 <input
-                                   ref={(node) => {
-                                     fileInputRefs.current[game.id] = node;
-                                   }}
-                                   type="file"
-                                   accept="image/png,image/jpeg,image/webp"
-                                   className="hidden"
-                                   onChange={(event) =>
-                                     handleEvidenceUpload(game.id, game.progressId, event.target.files?.[0] ?? null)
-                                   }
-                                 />
+                                   <input
+                                     ref={(node) => {
+                                       fileInputRefs.current[game.id] = node;
+                                     }}
+                                     type="file"
+                                     accept="image/png,image/jpeg,image/webp"
+                                     className="hidden"
+                                     onChange={(event) =>
+                                       handleEvidenceUpload(
+                                         game.id,
+                                         game.progressId,
+                                         event.target.files?.[0] ?? null,
+                                         evidenceTypeByGame[game.id] ?? (game.masteryRequested ? 'MASTERED' : 'COMPLETION'),
+                                       )
+                                     }
+                                   />
+                                 </div>
                                </div>
                              ) : (
                                <>
@@ -789,6 +821,9 @@ export default function FranchiseChecklistView({
                                      <ShieldCheck className="h-3.5 w-3.5" />
                                      Approved
                                    </span>
+                                 )}
+                                 {game.evidenceStatus === 'verified' && game.masteryRequested && (
+                                   <span className="text-[10px] text-amber-300">100% review pending</span>
                                  )}
                                  {game.evidenceStatus === 'mastered-approved' && (
                                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#FED140]">
@@ -803,19 +838,37 @@ export default function FranchiseChecklistView({
                                    </span>
                                  )}
                                  {game.evidenceStatus === 'rejected' && (
-                                   <div className="flex items-center justify-end gap-2">
+                                   <div className="flex items-center justify-end gap-1.5">
                                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-red-300">
                                        <AlertTriangle className="h-3.5 w-3.5" />
                                        <span title={game.evidenceRejectionReason || 'Evidence was rejected.'} className="cursor-help underline decoration-dotted">Rejected</span>
                                      </span>
+                                   </div>
+                                 )}
+                                 <div className="mt-1 flex flex-col items-end gap-1">
+                                   <div className="flex items-center gap-1.5">
+                                     <select
+                                       value={evidenceTypeByGame[game.id] ?? (game.masteryRequested ? 'MASTERED' : 'COMPLETION')}
+                                       onChange={(event) => setEvidenceTypeByGame((current) => ({
+                                         ...current,
+                                         [game.id]: event.target.value === 'MASTERED' ? 'MASTERED' : 'COMPLETION',
+                                       }))}
+                                       aria-label={`Evidence type for ${game.title}`}
+                                       className="max-w-40 rounded-md border border-white/10 bg-zinc-950 px-2 py-1 text-[10px] text-zinc-200"
+                                     >
+                                       <option value="COMPLETION">Completion · 100 pts</option>
+                                       <option value="MASTERED" disabled={!game.mastered}>100% Mastery · +50 pts</option>
+                                     </select>
                                      <button
                                        type="button"
                                        onClick={() => fileInputRefs.current[game.id]?.click()}
-                                       disabled={uploadingGameId === game.id}
-                                       className="inline-flex items-center gap-1 rounded-md border border-red-500/30 bg-red-500/10 px-2 py-1 text-[11px] font-medium text-red-200 transition hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-50"
+                                       disabled={uploadingGameId === game.id || !game.progressId}
+                                       className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] text-zinc-300 transition hover:bg-white hover:text-black disabled:cursor-not-allowed disabled:opacity-50"
                                      >
                                        <UploadCloud className="h-3 w-3" />
-                                       Re-upload
+                                       {uploadingGameId === game.id
+                                         ? 'Uploading...'
+                                         : game.evidenceStatus === 'none' ? 'Upload' : 'Upload Again'}
                                      </button>
                                      <input
                                        ref={(node) => {
@@ -825,59 +878,19 @@ export default function FranchiseChecklistView({
                                        accept="image/png,image/jpeg,image/webp"
                                        className="hidden"
                                        onChange={(event) =>
-                                         handleEvidenceUpload(game.id, game.progressId, event.target.files?.[0] ?? null)
+                                         handleEvidenceUpload(
+                                           game.id,
+                                           game.progressId,
+                                           event.target.files?.[0] ?? null,
+                                           evidenceTypeByGame[game.id] ?? (game.masteryRequested ? 'MASTERED' : 'COMPLETION'),
+                                         )
                                        }
                                      />
                                    </div>
-                                 )}
-                                 {game.evidenceStatus === 'none' && (
-                                   <div className="flex items-center justify-end gap-2">
-                                     <button
-                                       type="button"
-                                       onClick={() => fileInputRefs.current[game.id]?.click()}
-                                       disabled={uploadingGameId === game.id}
-                                       className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] text-zinc-300 transition hover:bg-white hover:text-black hover:border-white disabled:cursor-not-allowed disabled:opacity-50"
-                                     >
-                                       <UploadCloud className="h-3 w-3" />
-                                       {uploadingGameId === game.id ? 'Uploading...' : 'Upload'}
-                                     </button>
-                                     <input
-                                       ref={(node) => {
-                                         fileInputRefs.current[game.id] = node;
-                                       }}
-                                       type="file"
-                                       accept="image/png,image/jpeg,image/webp"
-                                       className="hidden"
-                                       onChange={(event) =>
-                                         handleEvidenceUpload(game.id, game.progressId, event.target.files?.[0] ?? null)
-                                       }
-                                     />
-                                   </div>
-                                 )}
-                                 {(game.evidenceStatus === 'verified' || game.evidenceStatus === 'mastered-approved') && (
-                                   <div className="mt-1 flex items-center justify-end gap-2">
-                                     <button
-                                       type="button"
-                                       onClick={() => fileInputRefs.current[game.id]?.click()}
-                                       disabled={uploadingGameId === game.id}
-                                       className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] text-zinc-300 transition hover:bg-white hover:text-black disabled:opacity-50"
-                                     >
-                                       <UploadCloud className="h-3 w-3" />
-                                       {uploadingGameId === game.id ? 'Uploading...' : 'Upload Again'}
-                                     </button>
-                                     <input
-                                       ref={(node) => {
-                                         fileInputRefs.current[game.id] = node;
-                                       }}
-                                       type="file"
-                                       accept="image/png,image/jpeg,image/webp"
-                                       className="hidden"
-                                       onChange={(event) =>
-                                         handleEvidenceUpload(game.id, game.progressId, event.target.files?.[0] ?? null)
-                                       }
-                                     />
-                                   </div>
-                                 )}
+                                   {!game.mastered && (
+                                     <span className="text-[9px] text-zinc-500">Mark 100% mastered to upload mastery proof.</span>
+                                   )}
+                                 </div>
                                </>
                              )}
                             </td>

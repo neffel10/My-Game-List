@@ -3,10 +3,11 @@
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { uploadImageToBlob } from '@/lib/blob-upload';
-import { getEvidencePointsAvailableAt } from '@/lib/gamification';
+import { grantApprovedEvidenceRewards } from '@/lib/evidence-rewards';
 import { revalidatePath } from 'next/cache';
 
 const MAX_EVIDENCE_FILE_SIZE = 4 * 1024 * 1024;
+const MAX_DAILY_EVIDENCE_UPLOADS = 3;
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? process.env.ADMIN_EMAIL ?? 'admin@mygamelist.local')
   .split(',')
   .map((email) => email.trim().toLowerCase())
@@ -25,8 +26,12 @@ export async function uploadEvidence(formData: FormData) {
 
   const progressId = String(formData.get('progressId') ?? '').trim();
   const file = formData.get('file');
+  const masteryRequested = formData.get('evidenceType') === 'MASTERED';
 
   if (!progressId) return { error: 'No game record was found to attach this proof to.' };
+  if (formData.get('evidenceType') !== 'COMPLETION' && !masteryRequested) {
+    return { error: 'Choose whether this proof is for completion or 100% mastery.' };
+  }
   if (!(file instanceof File)) return { error: 'Please select a valid image file.' };
   if (!file.type.startsWith('image/')) return { error: 'Only image files are allowed as proof.' };
   if (file.size > MAX_EVIDENCE_FILE_SIZE) {
@@ -39,31 +44,63 @@ export async function uploadEvidence(formData: FormData) {
   if (!progress.completed && !progress.mastered) {
     return { error: 'Mark the game as completed before uploading evidence of completion.' };
   }
+  if (masteryRequested && !progress.mastered) {
+    return { error: 'Mark the game as 100% mastered before uploading mastery evidence.' };
+  }
+
+  const dateKey = new Date().toISOString().slice(0, 10);
+  const quotaKey = { userId: session.user.id, dateKey };
+  await prisma.dailyEvidenceUploadQuota.upsert({
+    where: { userId_dateKey: quotaKey },
+    update: {},
+    create: quotaKey,
+  });
+  const quotaReservation = await prisma.dailyEvidenceUploadQuota.updateMany({
+    where: { ...quotaKey, count: { lt: MAX_DAILY_EVIDENCE_UPLOADS } },
+    data: { count: { increment: 1 } },
+  });
+  if (quotaReservation.count === 0) {
+    return { error: 'You have reached the limit of 3 evidence uploads for today. Please try again tomorrow.' };
+  }
 
   let imageUrl: string;
   try {
     imageUrl = await uploadImageToBlob(file, 'evidence', MAX_EVIDENCE_FILE_SIZE);
   } catch (error) {
+    await prisma.dailyEvidenceUploadQuota.update({
+      where: { userId_dateKey: quotaKey },
+      data: { count: { decrement: 1 } },
+    });
     return { error: error instanceof Error ? error.message : 'The proof image could not be uploaded to storage.' };
   }
 
-  await prisma.evidenceSubmission.upsert({
-    where: { progressId },
-    update: {
-      imageUrl,
-      status: 'PENDING',
-      rejectionReason: null,
-      masteredApproved: false,
-      reviewedAt: null,
-      createdAt: new Date(),
-    },
-    create: {
-      userId: session.user.id,
-      progressId,
-      imageUrl,
-      status: 'PENDING',
-    },
-  });
+  try {
+    await prisma.evidenceSubmission.upsert({
+      where: { progressId },
+      update: {
+        imageUrl,
+        status: 'PENDING',
+        rejectionReason: null,
+        masteryRequested,
+        masteredApproved: false,
+        reviewedAt: null,
+        createdAt: new Date(),
+      },
+      create: {
+        userId: session.user.id,
+        progressId,
+        imageUrl,
+        status: 'PENDING',
+        masteryRequested,
+      },
+    });
+  } catch (error) {
+    await prisma.dailyEvidenceUploadQuota.update({
+      where: { userId_dateKey: quotaKey },
+      data: { count: { decrement: 1 } },
+    });
+    throw error;
+  }
 
   revalidatePath('/profile');
   revalidatePath('/admin/evidence');
@@ -101,6 +138,9 @@ export async function reviewEvidenceSubmission(evidenceId: string, formData: For
     },
   });
   if (!evidence) throw new Error('Evidence submission not found.');
+  if (masteredApproved && !evidence.masteryRequested) {
+    throw new Error('The user must submit separate 100% mastery evidence before this bonus can be approved.');
+  }
   if (evidence.status === 'REJECTED' && decision === 'APPROVED') {
     throw new Error('The user must upload new evidence before it can be approved.');
   }
@@ -110,12 +150,14 @@ export async function reviewEvidenceSubmission(evidenceId: string, formData: For
 
   const now = new Date();
   if (decision === 'REJECTED') {
-    await prisma.evidenceSubmission.update({
-      where: { id: evidenceId },
+    const rejected = await prisma.evidenceSubmission.updateMany({
+      where: { id: evidenceId, status: 'PENDING' },
       data: { status: 'REJECTED', rejectionReason, reviewedAt: now, masteredApproved: false },
     });
+    if (rejected.count === 0) {
+      throw new Error('This evidence has already been reviewed and can no longer be rejected.');
+    }
   } else {
-    const availableAt = getEvidencePointsAvailableAt(evidence.createdAt, now);
     const gameId = evidence.progress.gameId;
     const userId = evidence.userId;
     const existingMasteryAward = await prisma.pointAward.findUnique({
@@ -134,69 +176,13 @@ export async function reviewEvidenceSubmission(evidenceId: string, formData: For
           reviewedAt: now,
         },
       });
-
-      await tx.pointAward.upsert({
-        where: { userId_gameId_type: { userId, gameId, type: 'GAME_COMPLETED' } },
-        update: {},
-        create: { userId, gameId, type: 'GAME_COMPLETED', points: 100, availableAt },
-      });
-
-      if (finalMasteryApproval) {
-        await tx.pointAward.upsert({
-          where: { userId_gameId_type: { userId, gameId, type: 'GAME_MASTERED_BONUS' } },
-          update: {},
-          create: { userId, gameId, type: 'GAME_MASTERED_BONUS', points: 50, availableAt },
-        });
-      }
-
-      const rewardAvatar = await tx.unlockableAvatar.findFirst({
-        where: {
-          games: { some: { id: gameId } },
-          OR: [{ requiredMaster: false }, ...(finalMasteryApproval ? [{ requiredMaster: true }] : [])],
-        },
-      });
-      if (rewardAvatar) {
-        await tx.userUnlockedAvatar.upsert({
-          where: { userId_avatarId: { userId, avatarId: rewardAvatar.id } },
-          update: {},
-          create: { userId, avatarId: rewardAvatar.id },
-        });
-      }
-    });
-
-    const franchiseId = evidence.progress.game.subcategory.franchiseId;
-    const franchiseGames = await prisma.game.findMany({
-      where: { subcategory: { franchiseId } },
-      select: { id: true },
-    });
-    const approvedGameIds = await prisma.evidenceSubmission.findMany({
-      where: {
+      await grantApprovedEvidenceRewards(tx, {
         userId,
-        status: { in: ['APPROVED', 'MASTERED_APPROVED'] },
-        progress: { gameId: { in: franchiseGames.map((game) => game.id) } },
-      },
-      select: { progress: { select: { gameId: true } } },
+        gameId,
+        masteredApproved: finalMasteryApproval,
+        availableAt: now,
+      });
     });
-
-    if (franchiseGames.length > 0 && approvedGameIds.length === franchiseGames.length) {
-      const franchise = evidence.progress.game.subcategory.franchise;
-      const completionAvatar = await prisma.unlockableAvatar.upsert({
-        where: { catalogKey: `franchise-completion-${franchiseId}` },
-        update: {},
-        create: {
-          catalogKey: `franchise-completion-${franchiseId}`,
-          title: `${franchise.name} Completion`,
-          imageUrl: franchise.coverImage,
-          franchiseId,
-          requiredMaster: false,
-        },
-      });
-      await prisma.userUnlockedAvatar.upsert({
-        where: { userId_avatarId: { userId, avatarId: completionAvatar.id } },
-        update: {},
-        create: { userId, avatarId: completionAvatar.id },
-      });
-    }
   }
 
   revalidatePath('/admin/evidence');

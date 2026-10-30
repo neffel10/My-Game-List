@@ -27,7 +27,12 @@ export default async function AdminEvidencePage() {
   }
 
   const reviewableEvidence = await prisma.evidenceSubmission.findMany({
-    where: { status: { in: ['PENDING', 'APPROVED'] } },
+    where: {
+      OR: [
+        { status: 'PENDING' },
+        { status: 'APPROVED', masteryRequested: true, masteredApproved: false },
+      ],
+    },
     include: {
       user: true,
       progress: {
@@ -133,7 +138,7 @@ export default async function AdminEvidencePage() {
                     <div className="space-y-4">
                       <div className="space-y-2">
                         <div className="text-xs uppercase tracking-[0.2em] text-zinc-400">
-                          {submission.status === 'PENDING' ? 'Submitted by' : 'Approved evidence · mastery can be updated'}
+                          {submission.status === 'PENDING' ? 'Submitted by' : 'Completion points auto-awarded · mastery review pending'}
                         </div>
                         <h2 className="text-2xl font-bold text-white">{submission.user.gamertag}</h2>
                         <p className="text-sm text-zinc-300">{submission.user.email}</p>
@@ -143,6 +148,9 @@ export default async function AdminEvidencePage() {
                         <div className="text-xs uppercase tracking-[0.2em] text-zinc-500">Game</div>
                         <div className="mt-2 text-lg font-semibold text-white">{game.title}</div>
                         <div className="text-sm text-zinc-400">{franchise.name}</div>
+                        <div className="mt-2 inline-flex rounded-full border border-[#FED140]/30 bg-[#FED140]/10 px-2.5 py-1 text-[11px] font-semibold text-[#FED140]">
+                          {submission.masteryRequested ? '100% mastery proof' : 'Completion proof'}
+                        </div>
                       </div>
 
                       <div className="rounded-xl border border-violet-400/20 bg-violet-500/5 p-4 text-sm">
@@ -173,18 +181,28 @@ export default async function AdminEvidencePage() {
 
                       <div className="rounded-xl border border-white/10 bg-black/25 p-4">
                         <div className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-zinc-300">Review decision</div>
+                        {submission.status === 'PENDING' && (
+                          <p className="mb-3 text-xs text-zinc-400">
+                            If this submission is not reviewed within 72 hours, the 100 completion points are awarded automatically. The 50-point mastery bonus always requires manual approval.
+                          </p>
+                        )}
                         <form action={approveEvidenceSubmission.bind(null, submission.id)} className="space-y-3">
                           <label className="flex items-start gap-2 text-sm text-zinc-200">
                             <input
                               name="masteredApproved"
                               type="checkbox"
                               defaultChecked={submission.masteredApproved}
+                              disabled={!submission.masteryRequested || masteryAwarded}
                               className="mt-0.5 h-4 w-4 accent-emerald-400"
                             />
                             <span>
                               Confirm 100% mastery
                               <span className="block text-xs text-zinc-400">
-                                Adds 50 points only. If completion points were not awarded yet, the normal 100 points are also included.
+                                {masteryAwarded
+                                  ? 'The 50-point mastery bonus has already been awarded.'
+                                  : submission.masteryRequested
+                                    ? 'Adds 50 points after confirmation; any unawarded 100 completion points are granted at the same time.'
+                                    : 'The player must upload a separate 100% mastery proof before this bonus can be approved.'}
                               </span>
                             </span>
                           </label>
