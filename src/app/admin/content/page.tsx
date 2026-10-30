@@ -1,4 +1,3 @@
-import Image from 'next/image';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { ImageIcon, Gift, Sparkles, ArrowLeft, Plus } from 'lucide-react';
@@ -6,13 +5,18 @@ import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import ImportTaskProgress from '@/components/admin/ImportTaskProgress';
 import {
-  saveFeaturedFanArt,
   saveFranchiseFanArt,
   saveReward,
   createFranchise,
   toggleFanArtStatus,
   toggleRewardStatus,
 } from '@/app/actions/content-admin';
+import {
+  approveContestFanArt,
+  closeFanArtContest,
+  createFanArtContest,
+  rejectContestFanArt,
+} from '@/app/actions/fan-art';
 import ImageLightbox from '@/components/shared/ImageLightbox';
 
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? process.env.ADMIN_EMAIL ?? 'admin@mygamelist.local')
@@ -45,7 +49,7 @@ export default async function AdminContentPage({ searchParams }: AdminContentPag
     redirect('/');
   }
 
-  const [franchises, featuredArt, submissions, rewards, activeImportTasks, completedImportTasks] = await Promise.all([
+  const [franchises, featuredArt, submissions, rewards, activeImportTasks, completedImportTasks, openFanArtContest, pendingContestArt] = await Promise.all([
     prisma.franchise.findMany({
       orderBy: { name: 'asc' },
     }),
@@ -71,6 +75,27 @@ export default async function AdminContentPage({ searchParams }: AdminContentPag
       where: { status: 'COMPLETED' },
       orderBy: { updatedAt: 'desc' },
       take: 50,
+    }),
+    prisma.fanArtContest.findFirst({
+      where: { status: 'OPEN' },
+      include: {
+        franchise: true,
+        submissions: {
+          where: { reviewStatus: 'APPROVED', isActive: true },
+          include: { _count: { select: { votes: true } } },
+          orderBy: [{ votes: { _count: 'desc' } }, { createdAt: 'asc' }],
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    }),
+    prisma.fanArtSubmission.findMany({
+      where: { contestId: { not: null }, reviewStatus: 'PENDING' },
+      include: {
+        franchise: true,
+        submittedBy: { select: { gamertag: true, email: true } },
+        contest: { select: { month: true, year: true, status: true } },
+      },
+      orderBy: { createdAt: 'asc' },
     }),
   ]);
 
@@ -177,7 +202,92 @@ export default async function AdminContentPage({ searchParams }: AdminContentPag
               </div>
             </details>
           )}
+          <section className="rounded-2xl border border-white/10 bg-zinc-900/70 p-5 shadow-2xl">
+            <div className="mb-4">
+              <h2 className="text-xl font-bold text-white">Monthly fan art contest</h2>
+              <p className="mt-1 text-sm text-zinc-400">Run one franchise contest at a time. Closing voting publishes the leader as featured art until the next winner; ties go to the earliest-submitted approved entry. With no votes, the current featured art stays.</p>
+            </div>
+            {openFanArtContest ? (
+              <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Voting open · {openFanArtContest.month} {openFanArtContest.year}</p>
+                    <h3 className="mt-1 text-lg font-semibold text-white">{openFanArtContest.franchise.name}</h3>
+                    <p className="text-xs text-zinc-400">{openFanArtContest.submissions.length} approved entries</p>
+                  </div>
+                  <form action={closeFanArtContest.bind(null, openFanArtContest.id)}>
+                    <button type="submit" className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-100 hover:bg-emerald-500/15">
+                      Close voting & feature winner
+                    </button>
+                  </form>
+                </div>
+                {openFanArtContest.submissions.length > 0 ? (
+                  <ol className="mt-4 space-y-2">
+                    {openFanArtContest.submissions.map((entry) => (
+                      <li key={entry.id} className="flex items-center justify-between gap-3 rounded-lg bg-white/[0.03] px-3 py-2 text-sm">
+                        <span className="text-zinc-200">{entry.title} · {entry.artistName}</span>
+                        <span className="shrink-0 text-zinc-400">{entry._count.votes} votes</span>
+                      </li>
+                    ))}
+                  </ol>
+                ) : (
+                  <p className="mt-4 text-sm text-zinc-500">There are no approved entries yet. You can close the poll without changing the current featured art.</p>
+                )}
+              </div>
+            ) : (
+              <form action={createFanArtContest} className="grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-end">
+                <label className="flex flex-col gap-1 text-xs text-zinc-400">
+                  Franchise for this month
+                  <select name="franchiseId" required className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white">
+                    <option value="">Select a franchise</option>
+                    {franchises.map((franchise) => <option key={franchise.id} value={franchise.id}>{franchise.name}</option>)}
+                  </select>
+                </label>
+                <label className="flex flex-col gap-1 text-xs text-zinc-400">
+                  Contest month
+                  <input name="month" type="month" required defaultValue={new Date().toISOString().slice(0, 7)} className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white" />
+                </label>
+                <button type="submit" className="rounded-lg border border-white/15 bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/15">
+                  Open contest
+                </button>
+              </form>
+            )}
+          </section>
 
+          {pendingContestArt.length > 0 && (
+            <section className="rounded-2xl border border-white/10 bg-zinc-900/70 p-5 shadow-2xl">
+              <div className="mb-4">
+                <h2 className="text-xl font-bold text-white">Fan art submissions awaiting review</h2>
+                <p className="mt-1 text-sm text-zinc-400">Approve original, relevant entries before they appear in the public vote.</p>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                {pendingContestArt.map((entry) => (
+                  <article key={entry.id} className="overflow-hidden rounded-xl border border-white/10 bg-black/20">
+                    <ImageLightbox src={entry.imageUrl} alt={entry.title} className="h-52 w-full" sizes="(max-width: 768px) 100vw, 50vw" />
+                    <div className="space-y-3 p-4">
+                      <div>
+                        <h3 className="font-semibold text-white">{entry.title}</h3>
+                        <p className="text-xs text-zinc-400">{entry.submittedBy?.gamertag ?? entry.artistName} · {entry.franchise?.name} · {entry.contest?.month} {entry.contest?.year}</p>
+                      </div>
+                      {entry.contest?.status === 'OPEN' ? (
+                        <div className="flex flex-wrap gap-2">
+                          <form action={approveContestFanArt.bind(null, entry.id)}>
+                            <button type="submit" className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-100">Approve for voting</button>
+                          </form>
+                          <form action={rejectContestFanArt.bind(null, entry.id)} className="flex min-w-0 flex-1 gap-2">
+                            <input name="rejectionReason" required maxLength={500} placeholder="Rejection reason" className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/40 px-2 py-1.5 text-xs text-white" />
+                            <button type="submit" className="rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-100">Reject</button>
+                          </form>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-amber-200">The contest is closed; this entry cannot be approved for voting.</p>
+                      )}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
+          )}
           <section className="rounded-2xl border border-white/10 bg-zinc-900/70 p-5 shadow-2xl">
             <div className="mb-4 flex items-center gap-2">
               <Plus className="h-5 w-5 text-cyan-300" />
@@ -226,58 +336,6 @@ export default async function AdminContentPage({ searchParams }: AdminContentPag
                 >
                   <Plus className="h-4 w-4" />
                   Import franchise
-                </button>
-              </div>
-            </form>
-          </section>
-
-          <section className="rounded-2xl border border-white/10 bg-zinc-900/70 p-5 shadow-2xl">
-            <div className="mb-4 flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-violet-300" />
-              <h2 className="text-xl font-bold text-white">Set fan art of the month</h2>
-            </div>
-
-            <form action={saveFeaturedFanArt} encType="multipart/form-data" className="grid gap-4 md:grid-cols-2">
-              <label className="flex flex-col gap-2 text-sm text-zinc-300">
-                Franchise
-                <select name="franchiseId" required className="rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-white outline-none focus:border-violet-400">
-                  <option value="">Select a franchise</option>
-                  {franchises.map((franchise) => (
-                    <option key={franchise.id} value={franchise.id}>{franchise.name}</option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="flex flex-col gap-2 text-sm text-zinc-300">
-                Artwork title
-                <input name="title" required placeholder="Monthly winner title" className="rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-white outline-none focus:border-violet-400" />
-              </label>
-
-              <label className="flex flex-col gap-2 text-sm text-zinc-300">
-                Artist name
-                <input name="artistName" required placeholder="@CommunityArtist" className="rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-white outline-none focus:border-violet-400" />
-              </label>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="flex flex-col gap-2 text-sm text-zinc-300">
-                  Month
-                  <input name="month" required placeholder="April" className="rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-white outline-none focus:border-violet-400" />
-                </label>
-
-                <label className="flex flex-col gap-2 text-sm text-zinc-300">
-                  Year
-                  <input name="year" type="number" min="2024" defaultValue={new Date().getFullYear()} className="rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-white outline-none focus:border-violet-400" />
-                </label>
-              </div>
-
-              <label className="flex flex-col gap-2 text-sm text-zinc-300 md:col-span-2">
-                Image file
-                <input type="file" name="image" accept="image/*" required className="rounded-xl border border-dashed border-white/15 bg-black/20 px-3 py-3 text-zinc-300 file:mr-3 file:rounded-md file:border-0 file:bg-violet-500/15 file:px-3 file:py-2 file:text-violet-200" />
-              </label>
-
-              <div className="md:col-span-2 flex justify-end">
-                <button type="submit" className="rounded-xl border border-violet-400/40 bg-violet-500/10 px-5 py-2.5 text-sm font-semibold text-violet-100 transition hover:bg-violet-500/15">
-                  Save featured fan art
                 </button>
               </div>
             </form>
@@ -338,7 +396,7 @@ export default async function AdminContentPage({ searchParams }: AdminContentPag
               {submissions.map((item) => (
                 <div key={item.id} className="overflow-hidden rounded-xl border border-white/10 bg-black/20">
                   <div className="relative h-40 w-full">
-                    <Image src={item.imageUrl} alt={item.title} fill unoptimized sizes="(max-width: 768px) 100vw, 50vw" className="object-cover" />
+                    <ImageLightbox src={item.imageUrl} alt={item.title} className="h-full w-full" sizes="(max-width: 768px) 100vw, 50vw" />
                   </div>
                   <div className="space-y-2 p-3">
                     <div className="flex items-center justify-between gap-2">

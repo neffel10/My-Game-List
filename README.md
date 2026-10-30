@@ -49,3 +49,11 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 - Downloads and one-time codes are automatically redeemed using the user's available points. Each account can redeem a reward once; codes are assigned from a private inventory.
 - Users can retrieve their codes and downloads from `/rewards/my`. Download routes verify the signed-in user owns the redemption before streaming the asset.
 - Reward previews are watermarked and include basic right-click prevention. This deters casual copying but cannot prevent screenshots or browser developer-tools access; the downloadable original is never rendered in the public catalog.
+
+## Monthly fan art contest
+
+- An administrator opens one contest at a time from `/admin/content`, selecting one franchise and month. Close the prior contest before opening the next monthly poll.
+- Signed-in users can submit original or authorized PNG, JPEG, or WebP artwork (up to 3MB). Entries require admin approval before public voting.
+- Each account can vote once per contest. Live vote totals are public; ties are broken by earliest submission time.
+- Closing the poll publishes the winning art on the home page and franchise banner until a later contest winner replaces it. If there are no votes, the current featured art remains.
+- Prisma schema additions for contests, moderation, and votes must be synchronized to the target database before deploying this feature.

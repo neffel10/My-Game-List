@@ -51,6 +51,8 @@ model User {
   pointAwards   PointAward[]
   evidenceUploadQuotas DailyEvidenceUploadQuota[]
   rewardRedemptions RewardRedemption[]
+  fanArtSubmissions FanArtSubmission[] @relation("FanArtSubmitter")
+  fanArtVotes FanArtVote[]
 }
 
 model Franchise {
@@ -64,6 +66,7 @@ model Franchise {
   categories  Subcategory[]
   avatars     UnlockableAvatar[]
   fanArts     FanArtSubmission[]
+  fanArtContests FanArtContest[]
 }
 
 model Subcategory {
@@ -178,21 +181,64 @@ model DailyEvidenceUploadQuota {
 }
 
 model FanArtSubmission {
-  id          String    @id @default(cuid())
-  franchiseId String?
-  franchise   Franchise? @relation(fields: [franchiseId], references: [id], onDelete: SetNull)
-  title       String
-  artistName  String
-  imageUrl    String
-  month       String
-  year        Int
-  isFeatured  Boolean   @default(false)
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id              String   @id @default(cuid())
+  franchiseId     String?
+  franchise       Franchise? @relation(fields: [franchiseId], references: [id], onDelete: SetNull)
+  contestId       String?
+  contest         FanArtContest? @relation("ContestSubmissions", fields: [contestId], references: [id], onDelete: SetNull)
+  submittedByUserId String?
+  submittedBy     User? @relation("FanArtSubmitter", fields: [submittedByUserId], references: [id], onDelete: SetNull)
+  title           String
+  artistName      String
+  imageUrl        String
+  month           String
+  year            Int
+  reviewStatus    String   @default("APPROVED")
+  rejectionReason String?
+  isFeatured      Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  votes           FanArtVote[]
+  winnerOf        FanArtContest? @relation("ContestWinner")
 
   @@index([franchiseId])
   @@index([isFeatured, isActive])
+  @@index([contestId, reviewStatus, isActive])
+  @@index([submittedByUserId, createdAt])
+}
+
+model FanArtContest {
+  id                String   @id @default(cuid())
+  franchiseId       String
+  month             String
+  year              Int
+  status            String   @default("OPEN")
+  winnerSubmissionId String? @unique
+  createdAt         DateTime @default(now())
+  closedAt          DateTime?
+  franchise         Franchise @relation(fields: [franchiseId], references: [id], onDelete: Restrict)
+  submissions       FanArtSubmission[] @relation("ContestSubmissions")
+  votes             FanArtVote[]
+  winner            FanArtSubmission? @relation("ContestWinner", fields: [winnerSubmissionId], references: [id], onDelete: SetNull)
+
+  @@unique([year, month])
+  @@index([status, createdAt])
+}
+
+model FanArtVote {
+  id             String   @id @default(cuid())
+  contestId      String
+  submissionId   String
+  userId         String
+  createdAt      DateTime @default(now())
+  contest        FanArtContest @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  submission     FanArtSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([contestId, userId])
+  @@unique([submissionId, userId])
+  @@index([submissionId])
 }
 
 model Reward {
