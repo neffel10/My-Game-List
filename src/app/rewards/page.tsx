@@ -3,9 +3,12 @@ import Navbar from '@/components/layout/Navbar';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/auth';
 import RewardCard from '@/components/rewards/RewardCard';
+import { getLocale } from '@/lib/i18n-server';
+import { translate } from '@/lib/i18n';
 
 export default async function RewardsPage() {
-  const session = await auth();
+  const [session, locale] = await Promise.all([auth(), getLocale()]);
+  const t = (phrase: string) => translate(locale, phrase);
   const userId = session?.user?.id;
   const rewards = await prisma.reward.findMany({
     where: { isActive: true, deliveryType: { in: ['DIGITAL_DOWNLOAD', 'DIGITAL_CODE'] } },
@@ -37,28 +40,28 @@ export default async function RewardsPage() {
       <main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="mb-8 flex items-center justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">Rewards</p>
-            <h1 className="mt-2 text-4xl font-bold tracking-tight text-white">Digital rewards</h1>
+            <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">{t('Rewards')}</p>
+            <h1 className="mt-2 text-4xl font-bold tracking-tight text-white">{t('Digital rewards')}</h1>
           </div>
           <div className="flex flex-wrap gap-2">
             {userId && (
               <Link href="/rewards/my" className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-zinc-200 hover:bg-white/10">
-                My rewards
+                {t('My rewards')}
               </Link>
             )}
             <Link href="/franchises" className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-zinc-200 hover:bg-white/10">
-              Explore sagas
+              {t('Explore sagas')}
             </Link>
           </div>
         </div>
         <p className="mb-6 text-sm text-zinc-400">
-          Redeem points instantly for digital downloads and codes. Physical rewards are not available yet.
-          {userId && <span className="ml-2 font-semibold text-white">Your balance: {pointsBalance} pts</span>}
+          {t('Redeem points instantly for digital downloads and codes. Physical rewards are not available yet.')}
+          {userId && <span className="ml-2 font-semibold text-white">{t('Your balance:')} {pointsBalance} pts</span>}
         </p>
 
         {rewards.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-white/15 bg-zinc-900/60 p-10 text-center text-zinc-400">
-            No digital rewards are available yet.
+            {t('No digital rewards are available yet.')}
           </div>
         ) : (
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">

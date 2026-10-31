@@ -136,44 +136,50 @@ export async function createFanArtContest(formData: FormData) {
   const franchiseId = String(formData.get('franchiseId') ?? '').trim();
   const monthKey = String(formData.get('month') ?? '').trim();
   const match = /^(\d{4})-(\d{2})$/.exec(monthKey);
-  if (!franchiseId || !match) throw new Error('Select a franchise and a valid contest month.');
+  if (!franchiseId || !match) return { error: 'Select a franchise and a valid contest month.' };
 
   const year = Number(match[1]);
   const monthIndex = Number(match[2]) - 1;
   if (monthIndex < 0 || monthIndex >= MONTH_NAMES.length || year < 2020 || year > 2100) {
-    throw new Error('Select a valid contest month.');
+    return { error: 'Select a valid contest month.' };
   }
 
+  let result: { success: true } | { error: string };
   try {
-    await prisma.$transaction(async (tx) => {
+    result = await prisma.$transaction(async (tx) => {
       const existingOpenContest = await tx.fanArtContest.findFirst({
         where: { status: 'OPEN' },
-        select: { id: true },
+        include: { franchise: { select: { name: true } } },
       });
       if (existingOpenContest) {
-        throw new Error('Close the current monthly contest before opening another one.');
+        return {
+          error: `Close the open ${existingOpenContest.month} ${existingOpenContest.year} contest for ${existingOpenContest.franchise.name} before opening another contest.`,
+        };
       }
 
       const existingMonth = await tx.fanArtContest.findUnique({
         where: { year_month: { year, month: MONTH_NAMES[monthIndex] } },
         select: { id: true },
       });
-      if (existingMonth) throw new Error('A contest already exists for the selected month.');
+      if (existingMonth) return { error: `A contest already exists for ${MONTH_NAMES[monthIndex]} ${year}. Each month can have only one franchise contest.` };
 
       await tx.fanArtContest.create({
         data: { franchiseId, month: MONTH_NAMES[monthIndex], year },
       });
+      return { success: true as const };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-      throw new Error('A contest already exists for the selected month.');
+      return { error: `A contest already exists for ${MONTH_NAMES[monthIndex]} ${year}. Each month can have only one franchise contest.` };
     }
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034') {
-      throw new Error('Another contest change happened at the same time. Refresh and try again.');
+      return { error: 'Another contest was opened at the same time. Refresh this page and try again.' };
     }
     throw error;
   }
+  if ('error' in result) return result;
   revalidateFanArtPages();
+  return { success: true };
 }
 
 export async function closeFanArtContest(contestId: string) {

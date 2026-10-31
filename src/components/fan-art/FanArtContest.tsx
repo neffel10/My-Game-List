@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { voteForFanArt, submitFanArt } from '@/app/actions/fan-art';
 import ImageLightbox from '@/components/shared/ImageLightbox';
+import { useLanguage } from '@/components/providers/LanguageProvider';
 
 interface ContestSubmission {
   id: string;
@@ -30,6 +31,7 @@ export default function FanArtContest({ contest, userId }: FanArtContestProps) {
   const [message, setMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const router = useRouter();
+  const { t } = useLanguage();
 
   const handleSubmit = async (formData: FormData) => {
     setPending(true);
@@ -53,46 +55,46 @@ export default function FanArtContest({ contest, userId }: FanArtContestProps) {
     <section className="mb-10 rounded-2xl border border-white/10 bg-zinc-900/60 p-5 sm:p-7">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Monthly community contest · {contest.month} {contest.year}</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">{t('Monthly community contest')} · {contest.month} {contest.year}</p>
           <h2 className="mt-1 text-2xl font-bold text-white">{contest.franchiseName} fan art</h2>
-          <p className="mt-2 text-sm text-zinc-400">Vote once for your favorite approved entry. Live results are public; ties go to the earliest-submitted approved entry.</p>
+          <p className="mt-2 text-sm text-zinc-400">{t('Vote once for your favorite approved entry. Live results are public; ties go to the earliest-submitted approved entry.')}</p>
         </div>
         <div className="rounded-xl border border-white/10 bg-black/25 px-4 py-2 text-sm text-zinc-300">
-          {contest.totalVotes} {contest.totalVotes === 1 ? 'vote' : 'votes'}
+          {contest.totalVotes} {t(contest.totalVotes === 1 ? 'vote' : 'votes')}
         </div>
       </div>
 
       {userId ? (
         <details className="mt-5 rounded-xl border border-white/10 bg-black/20 p-4">
-          <summary className="cursor-pointer text-sm font-semibold text-white">Submit your fan art</summary>
+          <summary className="cursor-pointer text-sm font-semibold text-white">{t('Submit your fan art')}</summary>
           <form action={handleSubmit} className="mt-4 grid gap-3 sm:grid-cols-2">
             <input type="hidden" name="contestId" value={contest.id} />
             <label className="flex flex-col gap-1 text-xs text-zinc-400">
-              Artwork title
+              {t('Artwork title')}
               <input name="title" required minLength={2} maxLength={100} className="rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white" />
             </label>
             <label className="flex flex-col gap-1 text-xs text-zinc-400">
-              Image (max 3MB)
+              {t('Image (max 3MB)')}
               <input name="image" type="file" accept="image/png,image/jpeg,image/webp" required className="rounded-lg border border-dashed border-white/15 bg-black/40 px-3 py-2 text-xs text-zinc-300" />
             </label>
             <label className="flex items-start gap-2 text-xs text-zinc-400 sm:col-span-2">
               <input name="rightsConfirmed" type="checkbox" required className="mt-0.5 accent-white" />
-              I created this artwork or have permission to submit it, and I agree it may be displayed in the community contest.
+              {t('I created this artwork or have permission to submit it, and I agree it may be displayed in the community contest.')}
             </label>
             <button type="submit" disabled={pending} className="w-fit rounded-lg border border-white/15 bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/15 disabled:opacity-50">
-              {pending ? 'Submitting...' : 'Submit for review'}
+              {pending ? t('Submitting...') : t('Submit for review')}
             </button>
           </form>
         </details>
       ) : (
-        <p className="mt-5 text-sm text-zinc-400">Sign in to submit artwork or vote in this contest.</p>
+        <p className="mt-5 text-sm text-zinc-400">{t('Sign in to submit artwork or vote in this contest.')}</p>
       )}
 
       {message && <p role="status" className="mt-4 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-zinc-200">{message}</p>}
 
       {contest.submissions.length === 0 ? (
         <p className="mt-6 rounded-xl border border-dashed border-white/10 p-6 text-center text-sm text-zinc-500">
-          Entries will appear here after admin review.
+          {t('Entries will appear here after admin review.')}
         </p>
       ) : (
         <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
@@ -114,11 +116,11 @@ export default function FanArtContest({ contest, userId }: FanArtContestProps) {
                 <div className="space-y-3 p-4">
                   <div>
                     <h3 className="font-semibold text-white">{submission.title}</h3>
-                    <p className="text-xs text-zinc-400">by {submission.artistName}</p>
+                    <p className="text-xs text-zinc-400">{t('by')} {submission.artistName}</p>
                   </div>
                   <div>
                     <div className="mb-1 flex justify-between text-xs text-zinc-400">
-                      <span>{submission.voteCount} {submission.voteCount === 1 ? 'vote' : 'votes'}</span>
+                      <span>{submission.voteCount} {t(submission.voteCount === 1 ? 'vote' : 'votes')}</span>
                       <span>{percentage}%</span>
                     </div>
                     <div className="h-2 overflow-hidden rounded-full bg-white/10">
@@ -127,13 +129,13 @@ export default function FanArtContest({ contest, userId }: FanArtContestProps) {
                   </div>
                   {userId && !contest.userVoteId ? (
                     <button type="button" disabled={pending} onClick={() => handleVote(submission.id)} className="w-full rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:bg-white/15 disabled:opacity-50">
-                      {pending ? 'Saving vote...' : 'Vote for this art'}
+                      {pending ? t('Saving vote...') : t('Vote for this art')}
                     </button>
                   ) : isSelected ? (
-                    <div className="rounded-lg border border-emerald-400/20 bg-emerald-500/5 px-3 py-2 text-center text-sm font-medium text-emerald-200">Your vote</div>
+                    <div className="rounded-lg border border-emerald-400/20 bg-emerald-500/5 px-3 py-2 text-center text-sm font-medium text-emerald-200">{t('Your vote')}</div>
                   ) : (
                     <div className="rounded-lg border border-white/10 px-3 py-2 text-center text-xs text-zinc-500">
-                      {contest.userVoteId ? 'You already voted in this contest' : 'Sign in to vote'}
+                      {t(contest.userVoteId ? 'You already voted in this contest' : 'Sign in to vote')}
                     </div>
                   )}
                 </div>

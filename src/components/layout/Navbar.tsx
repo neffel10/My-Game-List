@@ -6,12 +6,14 @@ import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
 import { Gamepad2, Search, Trophy, Compass, LogIn, Menu, X, User, LogOut, ShieldCheck } from 'lucide-react';
 import AuthModal from '@/components/auth/AuthModal';
+import { useLanguage } from '@/components/providers/LanguageProvider';
 
 export default function Navbar() {
   const { data: session } = useSession();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const { locale, setLocale, t } = useLanguage();
 
   const currentUser = session?.user;
 
@@ -37,20 +39,23 @@ export default function Navbar() {
             </Link>
 
             {/* Desktop Navigation Links */}
-            <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-zinc-400">
+            <nav className="hidden lg:flex items-center gap-4 text-xs font-medium text-zinc-400 xl:text-sm">
               <Link href="/franchises" className="transition-colors hover:text-white flex items-center gap-1.5">
                 <Compass className="h-4 w-4" />
-                Franchises
+                {t('Franchises')}
               </Link>
               <Link href="/rewards" className="transition-colors hover:text-white flex items-center gap-1.5">
                 <Trophy className="h-4 w-4" />
-                Rewards
+                {t('Rewards')}
               </Link>
               <Link href="/fan-art" className="transition-colors hover:text-white">
-                Fan Art Contest
+                {t('Fan Art Contest')}
               </Link>
-              <Link href="/community" className="transition-colors hover:text-white">
-                Community
+              <Link href="/contact" className="transition-colors hover:text-white">
+                {t('Contact')}
+              </Link>
+              <Link href="/faq" className="transition-colors hover:text-white">
+                {t('FAQ')}
               </Link>
             </nav>
           </div>
@@ -58,23 +63,31 @@ export default function Navbar() {
           {/* Right Section: Search & Auth */}
           <div className="flex items-center gap-3">
             {/* Quick Search */}
-            <div className="relative hidden sm:block">
+            <div className="relative hidden xl:block">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
               <input
                 type="text"
-                placeholder="Search franchises, games..."
+                placeholder={t('Search franchises, games...')}
                 className="h-9 w-52 rounded-full border border-white/10 bg-white/[0.03] pl-9 pr-4 text-xs text-white placeholder-zinc-500 focus:border-white/30 focus:bg-white/[0.06] focus:outline-none transition-all"
               />
             </div>
 
             {/* User Session State or Sign In Button */}
             <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setLocale(locale === 'en' ? 'es' : 'en')}
+                className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1.5 text-[10px] font-bold tracking-wider text-zinc-300 hover:bg-white/10 hover:text-white"
+                aria-label={locale === 'en' ? 'Switch language to Spanish' : 'Cambiar idioma a inglés'}
+              >
+                {locale === 'en' ? 'ES' : 'EN'}
+              </button>
               <Link
                 href="/admin/content"
-                className="hidden items-center gap-1.5 rounded-full border border-violet-400/40 bg-violet-500/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-violet-100 transition hover:bg-violet-500/15 sm:inline-flex"
+                className="hidden items-center gap-1.5 rounded-full border border-violet-400/40 bg-violet-500/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-violet-100 transition hover:bg-violet-500/15 lg:inline-flex"
               >
                 <ShieldCheck className="h-3.5 w-3.5" />
-                Admin Hub
+                {t('Admin Hub')}
               </Link>
 
               {currentUser ? (
@@ -105,7 +118,7 @@ export default function Navbar() {
                         className="flex items-center gap-2 rounded-lg px-3 py-2 text-zinc-300 hover:bg-white/10 hover:text-white transition"
                       >
                         <User className="h-3.5 w-3.5" />
-                        <span>My Profile</span>
+                        <span>{t('My Profile')}</span>
                       </Link>
                       <Link
                         href="/admin/content"
@@ -113,7 +126,7 @@ export default function Navbar() {
                         className="flex items-center gap-2 rounded-lg px-3 py-2 text-violet-200 hover:bg-violet-500/10 transition"
                       >
                         <ShieldCheck className="h-3.5 w-3.5" />
-                        <span>Admin Hub</span>
+                        <span>{t('Admin Hub')}</span>
                       </Link>
                       <button
                         type="button"
@@ -121,7 +134,7 @@ export default function Navbar() {
                         className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-red-400 hover:bg-red-500/10 transition text-left cursor-pointer"
                       >
                         <LogOut className="h-3.5 w-3.5" />
-                        <span>Sign Out</span>
+                        <span>{t('Sign Out')}</span>
                       </button>
                     </div>
                   )}
@@ -133,7 +146,7 @@ export default function Navbar() {
                   className="flex items-center gap-2 rounded-full border border-white/15 bg-white text-zinc-950 px-4 py-1.5 text-xs font-semibold hover:bg-zinc-200 transition-all cursor-pointer shadow-sm"
                 >
                   <LogIn className="h-3.5 w-3.5" />
-                  <span>Sign In</span>
+                  <span>{t('Sign In')}</span>
                 </button>
               )}
             </div>
@@ -142,7 +155,7 @@ export default function Navbar() {
             <button
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="rounded-lg p-1.5 text-zinc-400 hover:text-white md:hidden cursor-pointer"
+              className="rounded-lg p-1.5 text-zinc-400 hover:text-white lg:hidden cursor-pointer"
               aria-label="Toggle Menu"
             >
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -152,22 +165,25 @@ export default function Navbar() {
 
         {/* Mobile Menu Dropdown */}
         {mobileMenuOpen && (
-          <div className="border-b border-white/10 bg-[#0b0f19] px-4 py-4 md:hidden">
+          <div className="border-b border-white/10 bg-[#0b0f19] px-4 py-4 lg:hidden">
             <nav className="flex flex-col gap-3 text-sm text-zinc-300">
               <Link href="/franchises" onClick={() => setMobileMenuOpen(false)} className="py-1 hover:text-white">
-                Franchises
+                {t('Franchises')}
               </Link>
               <Link href="/rewards" onClick={() => setMobileMenuOpen(false)} className="py-1 hover:text-white">
-                Rewards
+                {t('Rewards')}
               </Link>
               <Link href="/fan-art" onClick={() => setMobileMenuOpen(false)} className="py-1 hover:text-white">
-                Fan Art Contest
+                {t('Fan Art Contest')}
+              </Link>
+              <Link href="/contact" onClick={() => setMobileMenuOpen(false)} className="py-1 hover:text-white">
+                {t('Contact')}
+              </Link>
+              <Link href="/faq" onClick={() => setMobileMenuOpen(false)} className="py-1 hover:text-white">
+                {t('FAQ')}
               </Link>
               <Link href="/admin/content" onClick={() => setMobileMenuOpen(false)} className="py-1 text-violet-200 hover:text-violet-100">
-                Admin Hub
-              </Link>
-              <Link href="/community" onClick={() => setMobileMenuOpen(false)} className="py-1 hover:text-white">
-                Community
+                {t('Admin Hub')}
               </Link>
             </nav>
           </div>

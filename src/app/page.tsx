@@ -4,6 +4,8 @@ import FeaturedFanArt from '@/components/home/FeaturedFanArt';
 import FranchiseCard from '@/components/home/FranchiseCard';
 import { prisma } from '@/lib/prisma';
 import { Flame, Clock, Gift, Sparkles, ArrowRight } from 'lucide-react';
+import { getLocale } from '@/lib/i18n-server';
+import { translate } from '@/lib/i18n';
 
 function getEraLabel(years: number[]) {
   if (years.length === 0) return 'Updated now';
@@ -13,7 +15,7 @@ function getEraLabel(years: number[]) {
 }
 
 export default async function HomePage() {
-  const [franchises, featuredFanArt, rewards] = await Promise.all([
+  const [franchises, featuredFanArt, rewards, locale] = await Promise.all([
     prisma.franchise.findMany({
       include: {
         categories: {
@@ -38,7 +40,9 @@ export default async function HomePage() {
       orderBy: { pointsRequired: 'asc' },
       take: 3,
     }),
+    getLocale(),
   ]);
+  const t = (phrase: string) => translate(locale, phrase);
 
   const mappedFranchises = franchises
     .map((franchise) => {
@@ -51,9 +55,9 @@ export default async function HomePage() {
         name: franchise.name,
         slug: franchise.slug,
         imageSrc: franchise.bannerImage ?? franchise.coverImage,
-        era: getEraLabel(years),
+        era: t(getEraLabel(years)),
         totalGames,
-        completedCount: `${playerCount.toLocaleString()} players completed`,
+        completedCount: `${playerCount.toLocaleString()} ${t('players completed')}`,
         completionRate,
       };
     })
@@ -104,17 +108,16 @@ export default async function HomePage() {
               <div className="lg:col-span-7 space-y-6">
                 <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-zinc-300">
                   <Sparkles className="h-3.5 w-3.5 text-zinc-100" />
-                  <span>Monthly Fan Art Showcase & Real Rewards</span>
+                  <span>{t('Monthly Fan Art Showcase & Real Rewards')}</span>
                 </div>
 
                 <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl text-white">
-                  Track your game sagas. <br />
-                  <span className="text-zinc-400 font-normal">Prove it. Earn real loot.</span>
+                  {t('Track your game sagas.')} <br />
+                  <span className="text-zinc-400 font-normal">{t('Prove it. Earn real loot.')}</span>
                 </h1>
 
                 <p className="max-w-xl text-base text-zinc-400 leading-relaxed">
-                  Log your completed titles across entire franchises, submit your in-game screenshots as proof,
-                  earn completion points, and unlock rewards through verified milestones.
+                  {t('Log your completed titles across entire franchises, submit your in-game screenshots as proof, earn completion points, and unlock rewards through verified milestones.')}
                 </p>
 
                 <div className="flex flex-wrap items-center gap-4 pt-2">
@@ -122,29 +125,29 @@ export default async function HomePage() {
                     href="/franchises"
                     className="flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-zinc-950 transition hover:bg-zinc-200"
                   >
-                    Start Your Checklist
+                    {t('Start Your Checklist')}
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                   <Link
                     href="/franchises"
                     className="flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.03] px-6 py-3 text-sm font-medium text-zinc-300 hover:bg-white/[0.08] hover:text-white transition"
                   >
-                    Explore Franchises
+                    {t('Explore Franchises')}
                   </Link>
                 </div>
 
                 <div className="grid grid-cols-3 gap-6 pt-6 border-t border-white/10 max-w-md">
                   <div>
                     <div className="text-xl font-bold text-white">{franchises.length}</div>
-                    <div className="text-xs text-zinc-500">Active sagas</div>
+                    <div className="text-xs text-zinc-500">{t('Active sagas')}</div>
                   </div>
                   <div>
                     <div className="text-xl font-bold text-white">100%</div>
-                    <div className="text-xs text-zinc-500">Verified proofs</div>
+                    <div className="text-xs text-zinc-500">{t('Verified proofs')}</div>
                   </div>
                   <div>
-                    <div className="text-xl font-bold text-white">Monthly</div>
-                    <div className="text-xs text-zinc-500">Prize drops</div>
+                    <div className="text-xl font-bold text-white">{t('Monthly')}</div>
+                    <div className="text-xs text-zinc-500">{t('Prize drops')}</div>
                   </div>
                 </div>
               </div>
@@ -171,10 +174,10 @@ export default async function HomePage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Flame className="h-5 w-5 text-white" />
-                    <h2 className="text-xl font-bold tracking-tight text-white">Popular Franchises</h2>
+                    <h2 className="text-xl font-bold tracking-tight text-white">{t('Popular Franchises')}</h2>
                   </div>
                   <Link href="/franchises" className="text-xs font-medium text-zinc-400 transition hover:text-white">
-                    View all sagas →
+                    {t('View all sagas →')}
                   </Link>
                 </div>
 
@@ -191,10 +194,10 @@ export default async function HomePage() {
               <div className="rounded-xl border border-white/10 bg-gradient-to-b from-white/[0.05] to-transparent p-6">
                 <div className="flex items-center gap-2 text-white">
                   <Gift className="h-5 w-5" />
-                  <h3 className="font-semibold text-sm tracking-tight">Active Rewards Pool</h3>
+                  <h3 className="font-semibold text-sm tracking-tight">{t('Active Rewards Pool')}</h3>
                 </div>
                 <p className="mt-2 text-xs text-zinc-400 leading-relaxed">
-                  Top point earners this month receive gaming merchandise, figurines, and official game keys.
+                  {t('Redeem points for available digital wallpapers, avatars, and game codes.')}
                 </p>
                 <div className="mt-4 space-y-2 text-xs">
                   {rewards.length > 0 ? (
@@ -205,34 +208,21 @@ export default async function HomePage() {
                      </div>
                    ))
                   ) : (
-                   <>
-                     <div className="flex justify-between py-1.5 border-b border-white/[0.05]">
-                       <span className="text-zinc-400">Tier 1</span>
-                       <span className="font-semibold text-white">Collector figure</span>
-                     </div>
-                     <div className="flex justify-between py-1.5 border-b border-white/[0.05]">
-                       <span className="text-zinc-400">Tier 2</span>
-                       <span className="font-semibold text-white">Mug + Steam card</span>
-                     </div>
-                     <div className="flex justify-between py-1.5">
-                       <span className="text-zinc-400">Tier 3</span>
-                       <span className="font-semibold text-white">Digital game key</span>
-                     </div>
-                   </>
+                   <p className="py-2 text-zinc-500">{t('Digital rewards will appear here when available.')}</p>
                   )}
                 </div>
                 <Link
                   href="/rewards"
                   className="mt-5 block w-full rounded-lg border border-white/10 bg-white/5 py-2 text-center text-xs font-medium text-white hover:bg-white/10 transition"
                 >
-                  View Rewards Rules
+                  {t('View Rewards Rules')}
                 </Link>
               </div>
 
               <div className="rounded-xl border border-white/10 bg-white/[0.02] p-5 space-y-4">
                 <div className="flex items-center gap-2 text-white">
                   <Clock className="h-4 w-4 text-zinc-400" />
-                  <h3 className="text-sm font-semibold tracking-tight">Latest Sagas Added</h3>
+                  <h3 className="text-sm font-semibold tracking-tight">{t('Latest Sagas Added')}</h3>
                 </div>
 
                 <div className="divide-y divide-white/[0.05]">
@@ -242,9 +232,9 @@ export default async function HomePage() {
                         <Link href={`/franchises/${item.slug}`} className="font-medium text-zinc-200 hover:text-white transition">
                           {item.name}
                         </Link>
-                        <p className="text-[11px] text-zinc-500">{item.totalGames} games</p>
+                        <p className="text-[11px] text-zinc-500">{item.totalGames} {t('games')}</p>
                       </div>
-                      <span className="text-[11px] text-zinc-500">Live</span>
+                      <span className="text-[11px] text-zinc-500">{t('Live')}</span>
                     </div>
                   ))}
                 </div>
@@ -253,7 +243,7 @@ export default async function HomePage() {
                   href="/franchises"
                   className="block text-center text-xs text-zinc-400 hover:text-white pt-2 border-t border-white/[0.05]"
                 >
-                  + Explore all sagas
+                  + {t('Explore all sagas')}
                 </Link>
               </div>
             </aside>
@@ -265,9 +255,9 @@ export default async function HomePage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p>© {new Date().getFullYear()} MyGameList. All game trademarks and fan art belong to their respective creators.</p>
           <div className="flex gap-6">
-            <Link href="/franchises" className="hover:text-zinc-400">Franchises</Link>
-            <Link href="/profile" className="hover:text-zinc-400">Profile</Link>
-            <Link href="/admin/content" className="hover:text-zinc-400">Admin</Link>
+            <Link href="/franchises" className="hover:text-zinc-400">{t('Franchises')}</Link>
+            <Link href="/profile" className="hover:text-zinc-400">{t('Profile')}</Link>
+            <Link href="/admin/content" className="hover:text-zinc-400">{t('Admin')}</Link>
           </div>
         </div>
       </footer>

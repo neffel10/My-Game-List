@@ -6,6 +6,7 @@ import { X, Sparkles, Loader2, Gamepad2 } from 'lucide-react';
 import { registerUser } from '@/app/actions/auth';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { useLanguage } from '@/components/providers/LanguageProvider';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const router = useRouter();
+  const { t } = useLanguage();
 
   if (!isOpen) return null;
 
@@ -46,7 +48,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     });
 
     if (result?.error) {
-      setErrorMsg('Invalid email or password');
+      setErrorMsg(t('Invalid email or password'));
       setLoading(false);
       return;
     }
@@ -89,12 +91,12 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           </div>
 
           <h3 className="mt-2 text-2xl font-bold tracking-tight text-white">
-            {isRegister ? 'Create your Gamer Profile' : 'Welcome Back'}
+            {isRegister ? t('Create your Gamer Profile') : t('Welcome Back')}
           </h3>
           <p className="mt-1 text-xs text-zinc-400">
             {isRegister
-              ? 'Track completed titles, unlock rare avatars and save evidences.'
-              : 'Enter your credentials to sync your franchise quests.'}
+              ? t('Track completed titles, unlock rare avatars and save evidences.')
+              : t('Enter your credentials to sync your franchise quests.')}
           </p>
 
           {errorMsg && (
@@ -107,7 +109,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             {isRegister && (
               <div>
                 <label className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-                  Gamertag
+                  {t('Gamertag')}
                 </label>
                 <input
                   name="gamertag"
@@ -121,7 +123,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
             <div>
               <label className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-                Email Address
+                {t('Email Address')}
               </label>
               <input
                 name="email"
@@ -134,7 +136,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
             <div>
               <label className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-                Password
+                {t('Password')}
               </label>
               <input
                 name="password"
@@ -155,14 +157,14 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               ) : (
                 <>
                   <Sparkles className="h-4 w-4" />
-                  <span>{isRegister ? 'Register & Start Quest' : 'Sign In'}</span>
+                  <span>{isRegister ? t('Register & Start Quest') : t('Sign In')}</span>
                 </>
               )}
             </button>
           </form>
 
           <div className="mt-5 text-center text-xs text-zinc-400">
-            {isRegister ? 'Already have an account?' : "Don't have a profile yet?"}{' '}
+            {isRegister ? t('Already have an account?') : t("Don't have a profile yet?")}{' '}
             <button
               type="button"
               onClick={() => {
@@ -171,7 +173,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               }}
               className="font-medium text-white hover:underline ml-1"
             >
-              {isRegister ? 'Sign In' : 'Register now'}
+              {isRegister ? t('Sign In') : t('Register now')}
             </button>
           </div>
         </motion.div>

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import AuthProvider from '@/components/providers/AuthProvider';
+import LanguageProvider from '@/components/providers/LanguageProvider';
+import { getLocale } from '@/lib/i18n-server';
 import "./globals.css";
 
 const geistSans = Geist({
@@ -18,16 +20,19 @@ export const metadata: Metadata = {
   description: "The best app to register and track your favorite games",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const locale = await getLocale();
   return (
-    <html lang="en">
+    <html lang={locale}>
       <body className="bg-[#07090e] text-zinc-100 antialiased">
         <AuthProvider>
-          {children}
+          <LanguageProvider initialLocale={locale}>
+            {children}
+          </LanguageProvider>
         </AuthProvider>
       </body>
     </html>

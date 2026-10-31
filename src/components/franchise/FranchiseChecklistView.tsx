@@ -21,6 +21,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { BeatGameToggle, MasteredToggle } from '@/components/franchise/CheckToggles';
+import { useLanguage } from '@/components/providers/LanguageProvider';
 
 export interface ClientGame {
   id: string;
@@ -63,6 +64,7 @@ export default function FranchiseChecklistView({
   initialCategories,
 }: FranchiseChecklistViewProps) {
   const [categories, setCategories] = useState<ClientCategory[]>(initialCategories);
+  const { t } = useLanguage();
   const [filter, setFilter] = useState<'all' | 'completed' | 'pending'>('all');
   const [selectedGameIds, setSelectedGameIds] = useState<string[]>([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -454,20 +456,20 @@ export default function FranchiseChecklistView({
           {isAdmin && (
             <form action={updateFranchiseBanner} encType="multipart/form-data" className="absolute left-4 top-4 z-20 rounded-xl border border-cyan-400/20 bg-black/70 p-3 backdrop-blur sm:left-6 lg:left-8">
               <input type="hidden" name="franchiseId" value={franchiseId} />
-              <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-cyan-100">Admin banner editor</div>
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-cyan-100">{t('Admin banner editor')}</div>
               <div className="flex flex-wrap gap-2">
                 <input name="imageUrl" type="url" placeholder="https://image-url" className="w-48 rounded-lg border border-white/10 bg-black/50 px-2 py-1.5 text-xs text-white" />
                 <input name="image" type="file" accept="image/*" className="w-52 rounded-lg border border-dashed border-white/10 bg-black/50 px-2 py-1.5 text-xs text-zinc-300" />
-                <button type="submit" className="rounded-lg bg-cyan-500/20 px-3 py-1.5 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/30">Update</button>
+                <button type="submit" className="rounded-lg bg-cyan-500/20 px-3 py-1.5 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/30">{t('Update')}</button>
               </div>
             </form>
           )}
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
-                <span>Franchise Checklist</span>
+                <span>{t('Franchise Checklist')}</span>
                 <span>•</span>
-                <span className="text-zinc-300">Live Database</span>
+                <span className="text-zinc-300">{t('Live Database')}</span>
               </div>
               <h1 className="mt-1 text-3xl sm:text-5xl font-extrabold tracking-tight text-white">
                 {franchiseName} Series
@@ -481,14 +483,14 @@ export default function FranchiseChecklistView({
 
             <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/60 p-3 backdrop-blur-md">
               <div className="text-right">
-                <div className="text-xs text-zinc-400">Total Completion</div>
+                <div className="text-xs text-zinc-400">{t('Total Completion')}</div>
                 <div className="text-lg font-bold text-white">
                   {totalGames > 0 ? Math.round(((masteredCount + completedOnlyCount) / totalGames) * 100) : 0}%
                 </div>
               </div>
               <div className="h-8 w-px bg-white/10" />
               <div className="text-right">
-                <div className="text-xs text-zinc-400">Total Games</div>
+                <div className="text-xs text-zinc-400">{t('Total Games')}</div>
                 <div className="text-lg font-bold text-white">{totalGames}</div>
               </div>
             </div>
@@ -496,13 +498,13 @@ export default function FranchiseChecklistView({
           {isAdmin && (
             <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
               <a href={`/api/admin/franchises/${franchiseSlug}/games/export`} className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 font-semibold text-emerald-100 hover:bg-emerald-500/20">
-                Export games CSV
+                {t('Export games CSV')}
               </a>
               <form action={importFranchiseGamesCsv} encType="multipart/form-data" className="flex flex-wrap items-center gap-2">
                 <input type="hidden" name="franchiseSlug" value={franchiseSlug} />
                 <input name="file" type="file" accept=".csv,text/csv" required className="max-w-56 rounded-lg border border-white/10 bg-black/40 px-2 py-1.5 text-zinc-300" />
                 <button type="submit" className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 font-semibold text-amber-100 hover:bg-amber-500/20">
-                  Import games CSV
+                  {t('Import games CSV')}
                 </button>
               </form>
             </div>
@@ -522,13 +524,13 @@ export default function FranchiseChecklistView({
               </div>
             )}
             <p className="text-xs text-zinc-500">
-              Up to 3 successful evidence uploads per UTC day. Approved evidence grants points immediately; pending completion proof is auto-approved after 72 hours, while the 100% bonus always needs manual review.
+              {t('Up to 3 successful evidence uploads per UTC day. Approved evidence grants points immediately; pending completion proof is auto-approved after 72 hours, while the 100% bonus always needs manual review.')}
             </p>
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.08] pb-4">
               <div className="flex items-center gap-2">
                 <Gamepad2 className="h-5 w-5 text-white" />
-                <h2 className="text-base font-semibold text-white">Subseries & Games</h2>
+                <h2 className="text-base font-semibold text-white">{t('Subseries & Games')}</h2>
               </div>
 
               <div className="flex shrink-0 items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] p-1 text-xs">
@@ -542,7 +544,7 @@ export default function FranchiseChecklistView({
                         : 'text-zinc-400 hover:text-white'
                     }`}
                   >
-                    {mode}
+                    {t(mode)}
                   </button>
                 ))}
               </div>
@@ -556,14 +558,14 @@ export default function FranchiseChecklistView({
                     className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-[#FED140]/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-[#FED140] transition hover:bg-[#FED140]/20 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <input type="checkbox" readOnly checked={allVisibleSelected} className="h-3.5 w-3.5 accent-[#FED140]" />
-                    {allVisibleSelected ? 'Unselect all' : 'Select all'}
+                    {t(allVisibleSelected ? 'Unselect all' : 'Select all')}
                   </button>
                   <button
                     type="button"
                     onClick={() => setShowAddGameForm((visible) => !visible)}
                     className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-emerald-200 transition hover:bg-emerald-500/20"
                   >
-                    {showAddGameForm ? 'Close add game' : '+ Add game'}
+                    {showAddGameForm ? t('Close add game') : t('+ Add game')}
                   </button>
                   <button
                     type="button"
@@ -577,7 +579,7 @@ export default function FranchiseChecklistView({
                     className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-zinc-200 transition hover:border-white/25 hover:text-[#FED140]"
                   >
                     <Layers className="h-3.5 w-3.5" />
-                    Manage categories
+                    {t('Manage categories')}
                   </button>
                   <button
                     type="button"
@@ -585,7 +587,7 @@ export default function FranchiseChecklistView({
                     disabled={selectedGameIds.length === 0 || deletingGames}
                     className="inline-flex items-center justify-center rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-red-200 transition hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    Delete games{selectedGameIds.length > 0 ? ` (${selectedGameIds.length})` : ''}
+                    {t('Delete games')}{selectedGameIds.length > 0 ? ` (${selectedGameIds.length})` : ''}
                   </button>
                 </div>
               )}
@@ -601,25 +603,25 @@ export default function FranchiseChecklistView({
               <form action={createManualGame} className="grid gap-3 rounded-xl border border-emerald-400/25 bg-emerald-500/5 p-4 sm:grid-cols-2 lg:grid-cols-5">
                 <input type="hidden" name="franchiseSlug" value={franchiseSlug} />
                 <label className="flex flex-col gap-1 text-xs text-zinc-400">
-                  Title
-                  <input name="title" required placeholder="Game title" className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white" />
+                  {t('Title')}
+                  <input name="title" required placeholder={t('Game title')} className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white" />
                 </label>
                 <label className="flex flex-col gap-1 text-xs text-zinc-400">
-                  Year
+                  {t('Year')}
                   <input name="year" required type="number" min="1" max="2100" placeholder="2024" className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white" />
                 </label>
                 <label className="flex flex-col gap-1 text-xs text-zinc-400">
-                  Category
+                  {t('Category')}
                   <select name="subcategoryId" required className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white">
                     {categories.map((category) => <option key={category.id} value={category.id}>{category.title}</option>)}
                   </select>
                 </label>
                 <label className="flex flex-col gap-1 text-xs text-zinc-400">
-                  Platforms
+                  {t('Platforms')}
                   <input name="platforms" placeholder="PC|PlayStation 5" className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white" />
                 </label>
                 <div className="flex items-end">
-                  <button type="submit" className="w-full rounded-lg bg-emerald-500/20 px-3 py-2 text-sm font-semibold text-emerald-100 hover:bg-emerald-500/30">Save game</button>
+                  <button type="submit" className="w-full rounded-lg bg-emerald-500/20 px-3 py-2 text-sm font-semibold text-emerald-100 hover:bg-emerald-500/30">{t('Save game')}</button>
                 </div>
               </form>
             )}
@@ -655,7 +657,7 @@ export default function FranchiseChecklistView({
                       <button
                         onClick={() => moveCategory(catIdx, 'up')}
                         disabled={catIdx === 0}
-                        title="Move category up"
+                        title={t('Move category up')}
                         className="rounded p-1 text-zinc-400 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
                       >
                         <ChevronUp className="h-4 w-4" />
@@ -663,7 +665,7 @@ export default function FranchiseChecklistView({
                       <button
                         onClick={() => moveCategory(catIdx, 'down')}
                         disabled={catIdx === categories.length - 1}
-                        title="Move category down"
+                        title={t('Move category down')}
                         className="rounded p-1 text-zinc-400 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
                       >
                         <ChevronDown className="h-4 w-4" />
@@ -675,11 +677,11 @@ export default function FranchiseChecklistView({
                     <table className="w-full text-left text-xs sm:text-sm">
                       <thead className="border-b border-white/[0.05] bg-black/40 text-[11px] uppercase tracking-wider text-zinc-400">
                         <tr>
-                          {isAdmin && <th className="py-3 pl-4 sm:pl-6 w-10 text-center">Select</th>}
-                          <th className="py-3 pl-4 sm:pl-6">Title</th>
-                          <th className="py-3 px-3 text-center w-28">Beat Game</th>
-                          <th className="py-3 px-3 text-center w-28">100% Mastered</th>
-                          <th className="py-3 pr-4 sm:pr-6 text-right w-36">Evidence</th>
+                          {isAdmin && <th className="py-3 pl-4 sm:pl-6 w-10 text-center">{t('Select')}</th>}
+                          <th className="py-3 pl-4 sm:pl-6">{t('Title')}</th>
+                          <th className="py-3 px-3 text-center w-28">{t('Beat Game')}</th>
+                          <th className="py-3 px-3 text-center w-28">{t('100% Mastered')}</th>
+                          <th className="py-3 pr-4 sm:pr-6 text-right w-36">{t('Evidence')}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-white/[0.04]">
@@ -703,11 +705,11 @@ export default function FranchiseChecklistView({
                                   <input type="hidden" name="franchiseSlug" value={franchiseSlug} />
                                   <input name="title" defaultValue={game.title} required className="rounded border border-white/10 bg-black/30 px-2 py-1 text-sm text-white sm:col-span-2" />
                                   <input name="year" defaultValue={game.year || ''} type="number" required className="rounded border border-white/10 bg-black/30 px-2 py-1 text-sm text-white" />
-                                  <input name="platforms" defaultValue={game.platforms?.join('|') ?? ''} placeholder="Platforms separated by |" className="rounded border border-white/10 bg-black/30 px-2 py-1 text-xs text-white sm:col-span-2" />
-                                  <input name="rawgSlug" defaultValue={game.rawgSlug ?? ''} placeholder="RAWG slug (optional)" className="rounded border border-white/10 bg-black/30 px-2 py-1 text-xs text-white sm:col-span-2" />
+                                  <input name="platforms" defaultValue={game.platforms?.join('|') ?? ''} placeholder={t('Platforms separated by |')} className="rounded border border-white/10 bg-black/30 px-2 py-1 text-xs text-white sm:col-span-2" />
+                                  <input name="rawgSlug" defaultValue={game.rawgSlug ?? ''} placeholder={t('RAWG slug (optional)')} className="rounded border border-white/10 bg-black/30 px-2 py-1 text-xs text-white sm:col-span-2" />
                                   <div className="flex gap-2 sm:col-span-4">
-                                    <button type="submit" className="rounded bg-emerald-500/20 px-2 py-1 text-xs text-emerald-100">Save</button>
-                                    <button type="button" onClick={() => setEditingGameId(null)} className="rounded bg-white/10 px-2 py-1 text-xs text-zinc-300">Cancel</button>
+                                    <button type="submit" className="rounded bg-emerald-500/20 px-2 py-1 text-xs text-emerald-100">{t('Save')}</button>
+                                    <button type="button" onClick={() => setEditingGameId(null)} className="rounded bg-white/10 px-2 py-1 text-xs text-zinc-300">{t('Cancel')}</button>
                                   </div>
                                 </form>
                               ) : (
@@ -736,13 +738,13 @@ export default function FranchiseChecklistView({
                              {isAdmin ? (
                                <div className="flex items-center justify-end gap-2">
                                  <button type="button" onClick={() => setEditingGameId(editingGameId === game.id ? null : game.id)} className="rounded-md border border-white/15 bg-[#FED140]/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#FED140] hover:bg-[#FED140]/20">
-                                   {editingGameId === game.id ? 'Close' : 'Edit'}
+                                   {t(editingGameId === game.id ? 'Close' : 'Edit')}
                                  </button>
                                  <select
                                    value={category.id}
                                    onChange={(event) => handleMoveGameToCategory(game.id, event.target.value)}
                                    className="rounded-md border border-white/10 bg-zinc-950 px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-zinc-200 outline-none"
-                                   aria-label={`Assign ${game.title} to a tag`}
+                                   aria-label={`${t('Assign')} ${game.title} ${t('to a category')}`}
                                  >
                                    {categories.map((option) => (
                                      <option key={option.id} value={option.id}>
@@ -754,28 +756,28 @@ export default function FranchiseChecklistView({
                                  {game.evidenceStatus === 'verified' && (
                                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-400">
                                      <ShieldCheck className="h-3.5 w-3.5" />
-                                     Approved
+                                     {t('Approved')}
                                    </span>
                                  )}
                                  {game.evidenceStatus === 'verified' && game.masteryRequested && (
-                                   <span className="text-[10px] text-amber-300">100% review pending</span>
+                                   <span className="text-[10px] text-amber-300">{t('100% review pending')}</span>
                                  )}
                                  {game.evidenceStatus === 'mastered-approved' && (
                                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#FED140]">
                                      <ShieldCheck className="h-3.5 w-3.5" />
-                                     100% Mastered Approved
+                                     {t('100% Mastered Approved')}
                                    </span>
                                  )}
                                  {game.evidenceStatus === 'pending' && (
                                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-300">
                                      <FileCheck className="h-3.5 w-3.5" />
-                                     Pending
+                                     {t('Pending')}
                                    </span>
                                  )}
                                  {game.evidenceStatus === 'rejected' && (
                                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-red-300">
                                      <AlertTriangle className="h-3.5 w-3.5" />
-                                     <span title={game.evidenceRejectionReason || 'Evidence was rejected.'} className="cursor-help underline decoration-dotted">Rejected</span>
+                                     <span title={game.evidenceRejectionReason || t('Evidence was rejected.')} className="cursor-help underline decoration-dotted">{t('Rejected')}</span>
                                    </span>
                                  )}
                                  <div className="flex items-center gap-1.5">
@@ -785,11 +787,11 @@ export default function FranchiseChecklistView({
                                        ...current,
                                        [game.id]: event.target.value === 'MASTERED' ? 'MASTERED' : 'COMPLETION',
                                      }))}
-                                     aria-label={`Evidence type for ${game.title}`}
+                                     aria-label={`${t('Evidence type for')} ${game.title}`}
                                      className="max-w-40 rounded-md border border-white/10 bg-zinc-950 px-2 py-1 text-[10px] text-zinc-200"
                                    >
-                                     <option value="COMPLETION">Completion · 100 pts</option>
-                                     <option value="MASTERED" disabled={!game.mastered}>100% Mastery · +50 pts</option>
+                                     <option value="COMPLETION">{t('Completion')} · 100 pts</option>
+                                     <option value="MASTERED" disabled={!game.mastered}>100% {t('Mastery')} · +50 pts</option>
                                    </select>
                                    <button
                                      type="button"
@@ -798,7 +800,7 @@ export default function FranchiseChecklistView({
                                      className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] text-zinc-300 transition hover:bg-white hover:text-black disabled:cursor-not-allowed disabled:opacity-50"
                                    >
                                      <UploadCloud className="h-3 w-3" />
-                                     {uploadingGameId === game.id ? 'Uploading...' : 'Upload'}
+                                     {uploadingGameId === game.id ? t('Uploading...') : t('Upload')}
                                    </button>
                                    <input
                                      ref={(node) => {
@@ -823,29 +825,29 @@ export default function FranchiseChecklistView({
                                  {game.evidenceStatus === 'verified' && (
                                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-400">
                                      <ShieldCheck className="h-3.5 w-3.5" />
-                                     Approved
+                                     {t('Approved')}
                                    </span>
                                  )}
                                  {game.evidenceStatus === 'verified' && game.masteryRequested && (
-                                   <span className="text-[10px] text-amber-300">100% review pending</span>
+                                   <span className="text-[10px] text-amber-300">{t('100% review pending')}</span>
                                  )}
                                  {game.evidenceStatus === 'mastered-approved' && (
                                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#FED140]">
                                      <ShieldCheck className="h-3.5 w-3.5" />
-                                     100% Mastered Approved
+                                     {t('100% Mastered Approved')}
                                    </span>
                                  )}
                                  {game.evidenceStatus === 'pending' && (
                                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-300">
                                      <FileCheck className="h-3.5 w-3.5" />
-                                     Pending
+                                     {t('Pending')}
                                    </span>
                                  )}
                                  {game.evidenceStatus === 'rejected' && (
                                    <div className="flex items-center justify-end gap-1.5">
                                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-red-300">
                                        <AlertTriangle className="h-3.5 w-3.5" />
-                                       <span title={game.evidenceRejectionReason || 'Evidence was rejected.'} className="cursor-help underline decoration-dotted">Rejected</span>
+                                       <span title={game.evidenceRejectionReason || t('Evidence was rejected.')} className="cursor-help underline decoration-dotted">{t('Rejected')}</span>
                                      </span>
                                    </div>
                                  )}
@@ -857,11 +859,11 @@ export default function FranchiseChecklistView({
                                          ...current,
                                          [game.id]: event.target.value === 'MASTERED' ? 'MASTERED' : 'COMPLETION',
                                        }))}
-                                       aria-label={`Evidence type for ${game.title}`}
+                                       aria-label={`${t('Evidence type for')} ${game.title}`}
                                        className="max-w-40 rounded-md border border-white/10 bg-zinc-950 px-2 py-1 text-[10px] text-zinc-200"
                                      >
-                                       <option value="COMPLETION">Completion · 100 pts</option>
-                                       <option value="MASTERED" disabled={!game.mastered}>100% Mastery · +50 pts</option>
+                                       <option value="COMPLETION">{t('Completion')} · 100 pts</option>
+                                       <option value="MASTERED" disabled={!game.mastered}>100% {t('Mastery')} · +50 pts</option>
                                      </select>
                                      <button
                                        type="button"
@@ -871,8 +873,8 @@ export default function FranchiseChecklistView({
                                      >
                                        <UploadCloud className="h-3 w-3" />
                                        {uploadingGameId === game.id
-                                         ? 'Uploading...'
-                                         : game.evidenceStatus === 'none' ? 'Upload' : 'Upload Again'}
+                                         ? t('Uploading...')
+                                         : game.evidenceStatus === 'none' ? t('Upload') : t('Upload Again')}
                                      </button>
                                      <input
                                        ref={(node) => {
@@ -892,7 +894,7 @@ export default function FranchiseChecklistView({
                                      />
                                    </div>
                                    {!game.mastered && (
-                                     <span className="text-[9px] text-zinc-500">Mark 100% mastered to upload mastery proof.</span>
+                                     <span className="text-[9px] text-zinc-500">{t('Mark 100% mastered to upload mastery proof.')}</span>
                                    )}
                                  </div>
                                </>
@@ -915,7 +917,7 @@ export default function FranchiseChecklistView({
                   disabled={selectedGameIds.length === 0 || deletingGames}
                   className="inline-flex items-center justify-center rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-red-200 transition hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  Delete selected games{selectedGameIds.length > 0 ? ` (${selectedGameIds.length})` : ''}
+                  {t('Delete selected games')}{selectedGameIds.length > 0 ? ` (${selectedGameIds.length})` : ''}
                 </button>
               </div>
             )}
@@ -937,22 +939,22 @@ export default function FranchiseChecklistView({
                       />
                     </div>
                     <div>
-                      <div className="text-xs text-zinc-400">Gamer Card</div>
+                      <div className="text-xs text-zinc-400">{t('Gamer Card')}</div>
                       <h4 className="text-base font-bold text-white">NEFFEL10</h4>
                     </div>
                   </div>
                   <span className="rounded-md border border-white/20 bg-white/10 px-2.5 py-1 text-[11px] font-mono font-semibold uppercase tracking-wider text-white">
-                    Master
+                    {t('Master')}
                   </span>
                 </div>
 
                 <div className="mt-4 grid grid-cols-2 gap-3 text-center">
                   <div className="rounded-lg border border-white/[0.06] bg-black/40 p-2.5">
-                    <div className="text-[11px] text-zinc-400">Total Score</div>
+                    <div className="text-[11px] text-zinc-400">{t('Total Score')}</div>
                     <div className="text-base font-bold text-white mt-0.5">{totalPoints} pts</div>
                   </div>
                   <div className="rounded-lg border border-white/[0.06] bg-black/40 p-2.5">
-                    <div className="text-[11px] text-zinc-400">Proofs Verified</div>
+                    <div className="text-[11px] text-zinc-400">{t('Proofs Verified')}</div>
                     <div className="text-base font-bold text-emerald-400 mt-0.5">{verifiedCount}</div>
                   </div>
                 </div>
@@ -960,7 +962,7 @@ export default function FranchiseChecklistView({
                 {/* SVG DONUT CHART */}
                 <div className="mt-6 border-t border-white/10 pt-5">
                   <h5 className="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-4">
-                    Completion Breakdown
+                    {t('Completion Breakdown')}
                   </h5>
 
                   <div className="flex items-center justify-center">
@@ -1002,7 +1004,7 @@ export default function FranchiseChecklistView({
                         <span className="text-2xl font-extrabold text-white">
                           {totalGames > 0 ? Math.round(((masteredCount + completedOnlyCount) / totalGames) * 100) : 0}%
                         </span>
-                        <div className="text-[10px] text-zinc-400">Total Beat</div>
+                        <div className="text-[10px] text-zinc-400">{t('Total Beat')}</div>
                       </div>
                     </div>
                   </div>
@@ -1011,21 +1013,21 @@ export default function FranchiseChecklistView({
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="h-2.5 w-2.5 rounded-full bg-yellow-400" />
-                        <span className="text-zinc-300">100% Mastered</span>
+                        <span className="text-zinc-300">{t('100% Mastered')}</span>
                       </div>
                       <span className="font-mono text-zinc-400">{masteredCount} games ({Math.round(pMastered)}%)</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="h-2.5 w-2.5 rounded-full bg-white" />
-                        <span className="text-zinc-300">Completed (Story)</span>
+                        <span className="text-zinc-300">{t('Completed (Story)')}</span>
                       </div>
                       <span className="font-mono text-zinc-400">{completedOnlyCount} games ({Math.round(pCompleted)}%)</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="h-2.5 w-2.5 rounded-full bg-zinc-700" />
-                        <span className="text-zinc-300">Unfinished</span>
+                        <span className="text-zinc-300">{t('Unfinished')}</span>
                       </div>
                       <span className="font-mono text-zinc-400">{unfinishedCount} games ({Math.round(pUnfinished)}%)</span>
                     </div>
@@ -1043,11 +1045,11 @@ export default function FranchiseChecklistView({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 px-4">
           <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-zinc-900 p-6 shadow-2xl">
             <div className="mb-4 text-xs font-semibold uppercase tracking-[0.18em] text-red-200">
-              Confirm deletion
+              {t('Confirm deletion')}
             </div>
-            <h3 className="text-2xl font-bold text-white">Delete selected games?</h3>
+            <h3 className="text-2xl font-bold text-white">{t('Delete selected games?')}</h3>
             <p className="mt-2 text-sm text-zinc-300">
-              This action will remove the selected games from the franchise and add them to the blacklist, so they will not be imported again by the seeding process.
+              {t('This action will remove the selected games from the franchise and add them to the blacklist, so they will not be imported again by the seeding process.')}
             </p>
             <div className="mt-4 max-h-40 overflow-y-auto rounded-xl border border-white/10 bg-black/30 p-3">
               <ul className="space-y-2 text-sm text-zinc-200">
@@ -1065,7 +1067,7 @@ export default function FranchiseChecklistView({
                 }}
                 className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-medium text-zinc-200 transition hover:bg-white/10"
               >
-                Cancel
+                {t('Cancel')}
               </button>
               <button
                 type="button"
@@ -1073,7 +1075,7 @@ export default function FranchiseChecklistView({
                 disabled={deletingGames}
                 className="inline-flex items-center justify-center rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-100 transition hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {deletingGames ? 'Deleting...' : 'Delete games'}
+                {deletingGames ? t('Deleting...') : t('Delete games')}
               </button>
             </div>
           </div>
@@ -1085,11 +1087,11 @@ export default function FranchiseChecklistView({
           <section role="dialog" aria-modal="true" aria-labelledby="category-manager-title" className="max-h-full w-full max-w-2xl overflow-y-auto rounded-2xl border border-white/10 bg-zinc-900 p-5 shadow-2xl sm:p-6">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#FED140]">Admin tools</p>
-                <h3 id="category-manager-title" className="mt-1 text-2xl font-bold text-white">Manage categories</h3>
-                <p className="mt-1 text-sm text-zinc-400">Rename categories, add new ones, or move their games before deleting multiple categories.</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#FED140]">{t('Admin tools')}</p>
+                <h3 id="category-manager-title" className="mt-1 text-2xl font-bold text-white">{t('Manage categories')}</h3>
+                <p className="mt-1 text-sm text-zinc-400">{t('Rename categories, add new ones, or move their games before deleting multiple categories.')}</p>
               </div>
-              <button type="button" onClick={() => setShowCategoryManager(false)} aria-label="Close category manager" className="rounded-lg p-2 text-zinc-400 hover:bg-white/10 hover:text-white">
+              <button type="button" onClick={() => setShowCategoryManager(false)} aria-label={t('Close category manager')} className="rounded-lg p-2 text-zinc-400 hover:bg-white/10 hover:text-white">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -1099,12 +1101,12 @@ export default function FranchiseChecklistView({
             )}
 
             <div className="mb-5 rounded-xl border border-white/10 bg-black/20 p-4">
-              <h4 className="mb-3 text-sm font-semibold text-white">Add category</h4>
+              <h4 className="mb-3 text-sm font-semibold text-white">{t('Add category')}</h4>
               <div className="flex flex-col gap-2 sm:flex-row">
                 <input
                   value={newCategoryTitle}
                   onChange={(event) => setNewCategoryTitle(event.target.value)}
-                  placeholder="Category name"
+                  placeholder={t('Category name')}
                   maxLength={80}
                   className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-white/40"
                 />
@@ -1114,15 +1116,15 @@ export default function FranchiseChecklistView({
                   disabled={creatingCategory || !newCategoryTitle.trim()}
                   className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-100 hover:bg-emerald-500/20 disabled:opacity-40"
                 >
-                  {creatingCategory ? 'Adding...' : 'Add category'}
+                  {creatingCategory ? t('Adding...') : t('Add category')}
                 </button>
               </div>
             </div>
 
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs uppercase tracking-wider text-zinc-500">
-                <span>Existing categories</span>
-                <span>{categories.length} total</span>
+                <span>{t('Existing categories')}</span>
+                <span>{categories.length} {t('total')}</span>
               </div>
               {categories.map((category) => (
                 <div key={category.id} className="grid gap-2 rounded-xl border border-white/10 bg-black/20 p-3 sm:grid-cols-[auto_1fr_auto] sm:items-center">
@@ -1138,13 +1140,13 @@ export default function FranchiseChecklistView({
                         setDestinationCategoryId(categories.find((item) => !next.includes(item.id))?.id ?? '');
                       }
                     }}
-                    aria-label={`Select ${category.title} for deletion`}
+                    aria-label={`${t('Select')} ${category.title} ${t('for deletion')}`}
                     className="h-4 w-4 accent-red-500"
                   />
                   <input
                     value={categoryNameDrafts[category.id] ?? category.title}
                     onChange={(event) => setCategoryNameDrafts((previous) => ({ ...previous, [category.id]: event.target.value }))}
-                    aria-label={`Category name: ${category.title}`}
+                    aria-label={`${t('Category name')}: ${category.title}`}
                     className="min-w-0 rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-white/40"
                   />
                   <button
@@ -1153,24 +1155,24 @@ export default function FranchiseChecklistView({
                     disabled={categoryActionPending || !categoryNameDrafts[category.id]?.trim() || categoryNameDrafts[category.id]?.trim() === category.title}
                     className="rounded-lg border border-white/15 bg-[#FED140]/10 px-3 py-2 text-xs font-semibold text-[#FED140] hover:bg-[#FED140]/20 disabled:opacity-35"
                   >
-                    Save name
+                    {t('Save name')}
                   </button>
-                  <p className="pl-6 text-xs text-zinc-500 sm:col-start-2">Contains {category.games.length} games</p>
+                  <p className="pl-6 text-xs text-zinc-500 sm:col-start-2">{t('Contains')} {category.games.length} {t('games')}</p>
                 </div>
               ))}
             </div>
 
             {selectedCategoryIds.length > 0 && (
               <div className="mt-5 rounded-xl border border-red-400/20 bg-red-500/5 p-4">
-                <p className="text-sm font-semibold text-red-100">Delete {selectedCategoryIds.length} selected categories</p>
-                <p className="mt-1 text-xs text-zinc-400">Games in those categories will be moved to the selected remaining category before deletion.</p>
+                <p className="text-sm font-semibold text-red-100">{t('Delete')} {selectedCategoryIds.length} {t('selected categories')}</p>
+                <p className="mt-1 text-xs text-zinc-400">{t('Games in those categories will be moved to the selected remaining category before deletion.')}</p>
                 <div className="mt-3 flex flex-col gap-3 sm:flex-row">
                   <select
                     value={destinationCategoryId}
                     onChange={(event) => setDestinationCategoryId(event.target.value)}
                     className="min-w-0 flex-1 rounded-lg border border-white/10 bg-zinc-950 px-3 py-2 text-sm text-white"
                   >
-                    <option value="">Choose destination category</option>
+                    <option value="">{t('Choose destination category')}</option>
                     {categories.filter((category) => !selectedCategoryIds.includes(category.id)).map((category) => (
                       <option key={category.id} value={category.id}>{category.title}</option>
                     ))}
@@ -1186,7 +1188,7 @@ export default function FranchiseChecklistView({
                   </button>
                 </div>
                 {selectedCategoryIds.length >= categories.length && (
-                  <p className="mt-2 text-xs text-amber-200">At least one category must remain.</p>
+                  <p className="mt-2 text-xs text-amber-200">{t('At least one category must remain.')}</p>
                 )}
               </div>
             )}

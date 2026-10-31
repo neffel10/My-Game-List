@@ -4,9 +4,12 @@ import { ArrowLeft, Download, Ticket } from 'lucide-react';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import Navbar from '@/components/layout/Navbar';
+import { getLocale } from '@/lib/i18n-server';
+import { translate } from '@/lib/i18n';
 
 export default async function MyRewardsPage() {
-  const session = await auth();
+  const [session, locale] = await Promise.all([auth(), getLocale()]);
+  const t = (phrase: string) => translate(locale, phrase);
   const userId = session?.user?.id;
   if (!userId) redirect('/profile');
 
@@ -25,14 +28,14 @@ export default async function MyRewardsPage() {
       <main className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
         <Link href="/rewards" className="mb-6 inline-flex items-center gap-2 text-sm text-zinc-400 hover:text-white">
           <ArrowLeft className="h-4 w-4" />
-          Rewards catalog
+          {t('Rewards catalog')}
         </Link>
-        <h1 className="text-3xl font-bold text-white">My digital rewards</h1>
-        <p className="mt-2 text-sm text-zinc-400">Your redeemed downloads and digital codes are private to your account.</p>
+        <h1 className="text-3xl font-bold text-white">{t('My digital rewards')}</h1>
+        <p className="mt-2 text-sm text-zinc-400">{t('Your redeemed downloads and digital codes are private to your account.')}</p>
 
         {redemptions.length === 0 ? (
           <div className="mt-8 rounded-2xl border border-dashed border-white/15 bg-zinc-900/60 p-10 text-center text-zinc-400">
-            You have not redeemed any rewards yet.
+            {t('You have not redeemed any rewards yet.')}
           </div>
         ) : (
           <div className="mt-8 space-y-4">
@@ -41,10 +44,10 @@ export default async function MyRewardsPage() {
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
                     <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-                      Redeemed {redemption.createdAt.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                      {t('Redeemed')} {redemption.createdAt.toLocaleDateString(locale === 'es' ? 'es-MX' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
                     </p>
                     <h2 className="mt-1 text-xl font-semibold text-white">{redemption.reward.title}</h2>
-                    <p className="text-sm text-zinc-400">{redemption.pointsSpent} points · {redemption.reward.company}</p>
+                    <p className="text-sm text-zinc-400">{redemption.pointsSpent} {t('points')} · {redemption.reward.company}</p>
                   </div>
                   {redemption.reward.deliveryType === 'DIGITAL_DOWNLOAD' ? (
                     <a
@@ -52,18 +55,18 @@ export default async function MyRewardsPage() {
                       className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/15"
                     >
                       <Download className="h-4 w-4" />
-                      Download file
+                      {t('Download file')}
                     </a>
                   ) : redemption.digitalCode ? (
                     <div className="min-w-0 rounded-xl border border-emerald-400/20 bg-emerald-500/5 p-3">
                       <div className="mb-1 flex items-center gap-2 text-xs text-emerald-200">
                         <Ticket className="h-4 w-4" />
-                        Your personal code
+                        {t('Your personal code')}
                       </div>
                       <code className="break-all font-mono text-sm text-white">{redemption.digitalCode.code}</code>
                     </div>
                   ) : (
-                    <p className="text-sm text-red-200">Delivery details are unavailable. Contact an administrator.</p>
+                    <p className="text-sm text-red-200">{t('Delivery details are unavailable. Contact an administrator.')}</p>
                   )}
                 </div>
               </article>

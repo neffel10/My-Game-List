@@ -16,6 +16,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useLanguage } from '@/components/providers/LanguageProvider';
 
 export interface AvatarItem {
   id: string;
@@ -56,6 +57,7 @@ export default function ProfileView({ user, stats, avatars }: ProfileViewProps) 
   const [currentAvatar, setCurrentAvatar] = useState(user.image);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const router = useRouter();
+  const { t } = useLanguage();
 
   const handleEquip = async (avatar: AvatarItem) => {
     if (!avatar.isUnlocked || loadingId) return;
@@ -94,7 +96,7 @@ export default function ProfileView({ user, stats, avatars }: ProfileViewProps) 
                 className="object-cover"
               />
               <div className="absolute bottom-1 right-1 rounded-md bg-black/80 px-1.5 py-0.5 text-[10px] font-mono text-zinc-300 backdrop-blur-md">
-                Active
+                {t('Active')}
               </div>
             </div>
 
@@ -105,19 +107,19 @@ export default function ProfileView({ user, stats, avatars }: ProfileViewProps) 
                   {user.gamertag}
                 </h1>
                 <span className="rounded-md px-3 py-1 text-xs font-mono font-bold tracking-wider" style={{ color: user.rankColor, border: `1px solid ${user.rankColor}66`, backgroundColor: `${user.rankColor}1a` }}>
-                  {user.rank}
+                  {t(user.rank)}
                 </span>
               </div>
 
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-xs text-zinc-400">
                 <div className="flex items-center gap-1.5">
                   <Calendar className="h-4 w-4 text-zinc-500" />
-                  <span>Member since {user.createdAt}</span>
+                  <span>{t('Member since')} {user.createdAt}</span>
                 </div>
                 <span>•</span>
                 <div className="flex items-center gap-1.5">
                   <Flame className="h-4 w-4 text-orange-400" />
-                  <span>{user.totalPoints} verified Quest Score</span>
+                  <span>{user.totalPoints} {t('verified Quest Score')}</span>
                 </div>
               </div>
             </div>
@@ -125,11 +127,11 @@ export default function ProfileView({ user, stats, avatars }: ProfileViewProps) 
             {/* Quick Stats Pill */}
             <div className="grid grid-cols-2 gap-3 w-full sm:w-auto">
               <div className="rounded-xl border border-white/10 bg-black/40 p-3.5 text-center min-w-[120px]">
-                <div className="text-[11px] text-zinc-400">Total Games Beat</div>
+                <div className="text-[11px] text-zinc-400">{t('Total Games Beat')}</div>
                 <div className="text-xl font-black text-white mt-0.5">{stats.totalBeat}</div>
               </div>
               <div className="rounded-xl border border-white/10 bg-black/40 p-3.5 text-center min-w-[120px]">
-                <div className="text-[11px] text-zinc-400">100% Mastered</div>
+                <div className="text-[11px] text-zinc-400">{t('100% Mastered')}</div>
                 <div className="text-xl font-black text-yellow-400 mt-0.5">{stats.totalMastered}</div>
               </div>
             </div>
@@ -141,28 +143,28 @@ export default function ProfileView({ user, stats, avatars }: ProfileViewProps) 
             <div>
               <div className="flex items-center gap-2">
                 <Trophy className="h-5 w-5" style={{ color: user.rankColor }} />
-                <h2 className="text-lg font-bold text-white">Level progression</h2>
+                <h2 className="text-lg font-bold text-white">{t('Level progression')}</h2>
               </div>
               <p className="mt-1 text-sm text-zinc-400">
-                {user.rank} · {user.rankBadge} badge · {user.totalPoints} verified points
+                {t(user.rank)} · {t(user.rankBadge)} · {user.totalPoints} {t('verified points')}
               </p>
             </div>
             {user.nextRank ? (
               <p className="text-sm text-zinc-300">
-                <strong className="text-white">{user.pointsToNextRank}</strong> points to {user.nextRank}
+                <strong className="text-white">{user.pointsToNextRank}</strong> {t('points to')} {t(user.nextRank)}
               </p>
             ) : (
-              <p className="text-sm font-semibold text-violet-200">Maximum rank achieved</p>
+              <p className="text-sm font-semibold text-violet-200">{t('Maximum rank achieved')}</p>
             )}
           </div>
           <div className="mt-4 h-3 overflow-hidden rounded-full bg-black/50">
             <div className="h-full rounded-full transition-all" style={{ width: `${user.rankProgress}%`, backgroundColor: user.rankColor }} />
           </div>
           <div className="mt-2 flex justify-between text-xs text-zinc-500">
-            <span>{user.rank}</span>
-            <span>{user.nextRank ?? 'Master'}</span>
+            <span>{t(user.rank)}</span>
+            <span>{t(user.nextRank ?? 'Master')}</span>
           </div>
-          <p className="mt-3 text-xs text-zinc-500">Approved completion: 100 points · Approved 100% mastery: 50 additional points. Points are available immediately after approval.</p>
+          <p className="mt-3 text-xs text-zinc-500">{t('Approved completion: 100 points · Approved 100% mastery: 50 additional points. Points are available immediately after approval.')}</p>
         </section>
 
         {/* OVERALL STATS BREAKDOWN */}
@@ -172,8 +174,8 @@ export default function ProfileView({ user, stats, avatars }: ProfileViewProps) 
               <Gamepad2 className="h-6 w-6" />
             </div>
             <div>
-              <div className="text-xs text-zinc-400">Total Progress Tracked</div>
-              <div className="text-lg font-bold text-white mt-0.5">{stats.totalGamesTracked} Titles Interacted</div>
+              <div className="text-xs text-zinc-400">{t('Total Progress Tracked')}</div>
+              <div className="text-lg font-bold text-white mt-0.5">{stats.totalGamesTracked} {t('Titles Interacted')}</div>
             </div>
           </div>
 
@@ -182,9 +184,9 @@ export default function ProfileView({ user, stats, avatars }: ProfileViewProps) 
               <Trophy className="h-6 w-6" />
             </div>
             <div>
-              <div className="text-xs text-zinc-400">Mastery Rate</div>
+              <div className="text-xs text-zinc-400">{t('Mastery Rate')}</div>
               <div className="text-lg font-bold text-yellow-400 mt-0.5">
-                {stats.totalBeat > 0 ? Math.round((stats.totalMastered / stats.totalBeat) * 100) : 0}% of clears
+                {stats.totalBeat > 0 ? Math.round((stats.totalMastered / stats.totalBeat) * 100) : 0}% {t('of clears')}
               </div>
             </div>
           </div>
@@ -194,8 +196,8 @@ export default function ProfileView({ user, stats, avatars }: ProfileViewProps) 
               <ShieldCheck className="h-6 w-6" />
             </div>
             <div>
-              <div className="text-xs text-zinc-400">Verified Evidence</div>
-              <div className="text-lg font-bold text-emerald-400 mt-0.5">{stats.totalVerified} Approved Proofs</div>
+              <div className="text-xs text-zinc-400">{t('Verified Evidence')}</div>
+              <div className="text-lg font-bold text-emerald-400 mt-0.5">{stats.totalVerified} {t('Approved Proofs')}</div>
             </div>
           </div>
         </section>
@@ -205,10 +207,10 @@ export default function ProfileView({ user, stats, avatars }: ProfileViewProps) 
           <div className="flex items-center justify-between border-b border-white/10 pb-4">
             <div className="flex items-center gap-2.5">
               <Sparkles className="h-5 w-5 text-yellow-400" />
-              <h2 className="text-xl font-bold tracking-tight text-white">Avatar Showcase & Cosmetics</h2>
+              <h2 className="text-xl font-bold tracking-tight text-white">{t('Avatar Showcase & Cosmetics')}</h2>
             </div>
             <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-mono text-zinc-300">
-              {unlockedCount} / {avatars.length} Unlocked
+              {unlockedCount} / {avatars.length} {t('Unlocked')}
             </span>
           </div>
 
@@ -253,7 +255,7 @@ export default function ProfileView({ user, stats, avatars }: ProfileViewProps) 
                         {avatar.title}
                       </h4>
                       <p className="mt-1 text-[10px] text-zinc-400">
-                        {avatar.isFree ? 'Free starter avatar' : avatar.requiredMaster ? 'Require 100% Mastery' : 'Beat Story'}
+                        {t(avatar.isFree ? 'Free starter avatar' : avatar.requiredMaster ? 'Require 100% Mastery' : 'Beat Story')}
                       </p>
                     </div>
 
@@ -263,7 +265,7 @@ export default function ProfileView({ user, stats, avatars }: ProfileViewProps) 
                         isCurrent ? (
                           <div className="flex items-center justify-center gap-1 text-[11px] font-semibold text-white py-1">
                             <Check className="h-3.5 w-3.5 stroke-[3]" />
-                            <span>Equipped</span>
+                            <span>{t('Equipped')}</span>
                           </div>
                         ) : (
                           <button
@@ -275,13 +277,13 @@ export default function ProfileView({ user, stats, avatars }: ProfileViewProps) 
                             {isLoading ? (
                               <Loader2 className="h-3 w-3 animate-spin mx-auto" />
                             ) : (
-                              'Equip'
+                              t('Equip')
                             )}
                           </button>
                         )
                       ) : (
                         <span className="block text-center text-[10px] text-zinc-400 py-1 italic">
-                          Locked
+                          {t('Locked')}
                         </span>
                       )}
                     </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useLanguage } from '@/components/providers/LanguageProvider';
 
 type ImportTask = {
   franchiseName: string;
@@ -14,6 +15,7 @@ type ImportTask = {
 
 export default function ImportTaskProgress({ taskId }: { taskId: string }) {
   const [task, setTask] = useState<ImportTask | null>(null);
+  const { t } = useLanguage();
 
   useEffect(() => {
     let active = true;
@@ -37,7 +39,7 @@ export default function ImportTaskProgress({ taskId }: { taskId: string }) {
   }, [taskId]);
 
   if (!task) {
-    return <div className="rounded-xl border border-cyan-400/20 bg-cyan-500/5 p-4 text-sm text-cyan-100">Loading import task...</div>;
+    return <div className="rounded-xl border border-cyan-400/20 bg-cyan-500/5 p-4 text-sm text-cyan-100">{t('Loading import task...')}</div>;
   }
 
   const isFailed = task.status === 'FAILED';
@@ -53,7 +55,7 @@ export default function ImportTaskProgress({ taskId }: { taskId: string }) {
         <div className={`h-full rounded-full transition-all ${isFailed ? 'bg-red-400' : isDone ? 'bg-emerald-400' : 'bg-cyan-400'}`} style={{ width: `${task.progress}%` }} />
       </div>
       <p className="mt-2 text-xs text-zinc-300">{task.phase}</p>
-      {task.total > 0 && <p className="mt-1 text-xs text-zinc-400">{task.importedGames} of {task.total} games imported</p>}
+      {task.total > 0 && <p className="mt-1 text-xs text-zinc-400">{task.importedGames} {t('of')} {task.total} {t('games imported')}</p>}
       {task.error && <p className="mt-2 text-xs text-red-200">{task.error}</p>}
     </div>
   );

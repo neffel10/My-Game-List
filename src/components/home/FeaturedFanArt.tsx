@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Maximize2, X } from 'lucide-react';
+import { useLanguage } from '@/components/providers/LanguageProvider';
 
 interface FeaturedFanArtProps {
   imageSrc: string;
@@ -22,12 +23,7 @@ export default function FeaturedFanArt({
   totalGames,
 }: FeaturedFanArtProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  // Aseguramos que el componente esté montado en el cliente antes de crear el Portal
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const { t } = useLanguage();
 
   // Control de tecla escape y bloqueo de scroll
   useEffect(() => {
@@ -60,7 +56,7 @@ export default function FeaturedFanArt({
           {/* 1. Capa de Fondo: Imagen (sin interacción de puntero) */}
           <Image
             src={imageSrc}
-            alt={`Monthly Winning Fan Art - ${franchiseName}`}
+            alt={`${t('Monthly Winning Fan Art')} - ${franchiseName}`}
             fill
             priority
             sizes="(max-width: 1024px) 100vw, 40vw"
@@ -74,14 +70,14 @@ export default function FeaturedFanArt({
           <button
             type="button"
             onClick={openModal}
-            aria-label="Expand artwork"
+            aria-label={t('Expand artwork')}
             className="absolute inset-0 z-20 w-full h-full cursor-pointer bg-transparent border-0 focus:outline-none"
           />
 
           {/* 4. Barra Superior: Badge y Botón Preview */}
           <div className="absolute top-3 left-3 right-3 z-30 flex items-center justify-between pointer-events-none">
             <span className="pointer-events-auto rounded-md bg-black/75 backdrop-blur-md border border-white/10 px-2.5 py-1 text-[11px] font-medium text-zinc-200">
-              Featured Franchise: {franchiseName}
+              {t('Featured Franchise')}: {franchiseName}
             </span>
 
             <button
@@ -93,23 +89,23 @@ export default function FeaturedFanArt({
               className="pointer-events-auto cursor-pointer flex items-center gap-1.5 rounded-md bg-black/75 backdrop-blur-md border border-white/15 px-2.5 py-1 text-[11px] font-medium text-zinc-200 transition hover:bg-white hover:text-zinc-950"
             >
               <Maximize2 className="h-3 w-3" />
-              <span>Preview</span>
+              <span>{t('Preview')}</span>
             </button>
           </div>
 
           {/* 5. Barra Inferior: Metadatos y Enlace */}
           <div className="absolute bottom-4 left-4 right-4 z-30 pointer-events-none">
             <div className="pointer-events-auto">
-              <p className="text-xs text-zinc-400">Winning Artwork by</p>
+              <p className="text-xs text-zinc-400">{t('Winning Artwork by')}</p>
               <h3 className="text-sm font-semibold text-white">{artistName}</h3>
               
               <div className="mt-2 flex items-center justify-between text-xs text-zinc-400 border-t border-white/10 pt-2">
-                <span>Franchise Progress: {totalGames} Main Titles</span>
+                <span>{t('Franchise Progress')}: {totalGames} {t('Main Titles')}</span>
                 <Link 
                   href={`/franchises/${franchiseSlug}`} 
                   className="text-white font-medium hover:underline hover:text-zinc-200"
                 >
-                  View Saga →
+                  {t('View Saga →')}
                 </Link>
               </div>
             </div>
@@ -119,7 +115,7 @@ export default function FeaturedFanArt({
       </div>
 
       {/* LIGHTBOX MONTADO EN PORTAL DIRECTO A BODY */}
-      {isOpen && mounted && createPortal(
+      {isOpen && createPortal(
         <div 
           className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/95 p-4 sm:p-6 backdrop-blur-md"
           onClick={() => setIsOpen(false)}
@@ -128,7 +124,7 @@ export default function FeaturedFanArt({
           <button
             type="button"
             onClick={() => setIsOpen(false)}
-            aria-label="Close"
+            aria-label={t('Close')}
             className="absolute top-5 right-5 z-[100000] flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-zinc-900/90 text-white transition hover:bg-white hover:text-black cursor-pointer shadow-lg"
           >
             <X className="h-5 w-5" />
@@ -142,7 +138,7 @@ export default function FeaturedFanArt({
             <div className="relative h-[75vh] w-full overflow-hidden rounded-xl border border-white/10 bg-zinc-950 flex items-center justify-center shadow-2xl">
               <Image
                 src={imageSrc}
-                alt={`Full preview - ${franchiseName}`}
+                alt={`${t('Full preview')} - ${franchiseName}`}
                 fill
                 sizes="95vw"
                 className="object-contain select-none"
@@ -159,7 +155,7 @@ export default function FeaturedFanArt({
                 onClick={() => setIsOpen(false)}
                 className="text-white underline hover:text-zinc-300"
               >
-                Go to Franchise Checklist →
+                {t('Go to Franchise Checklist →')}
               </Link>
             </div>
           </div>

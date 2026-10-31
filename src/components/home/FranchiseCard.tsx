@@ -2,6 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowUpRight } from 'lucide-react';
+import { useLanguage } from '@/components/providers/LanguageProvider';
 
 interface FranchiseCardProps {
   name: string;
@@ -22,6 +23,7 @@ export default function FranchiseCard({
   completedCount,
   completionRate,
 }: FranchiseCardProps) {
+  const { t } = useLanguage();
   return (
     <Link
       href={`/franchises/${slug}`}
@@ -56,7 +58,7 @@ export default function FranchiseCard({
         <div>
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-400">
-              {totalGames} Main Titles
+              {totalGames} {t('Main Titles')}
             </span>
           </div>
           <h3 className="mt-1 text-lg font-bold tracking-tight text-white transition-colors group-hover:text-zinc-100 sm:text-xl">
@@ -70,7 +72,7 @@ export default function FranchiseCard({
         {/* Completion Progress Bar */}
         <div className="mt-4 space-y-1.5 border-t border-white/10 pt-3">
           <div className="flex justify-between text-[11px] text-zinc-300">
-            <span>Community Completion</span>
+            <span>{t('Community Completion')}</span>
             <span className="font-mono font-medium">{completionRate}%</span>
           </div>
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">

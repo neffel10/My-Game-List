@@ -4,9 +4,12 @@ import Navbar from '@/components/layout/Navbar';
 import { prisma } from '@/lib/prisma';
 import FanArtContest from '@/components/fan-art/FanArtContest';
 import ImageLightbox from '@/components/shared/ImageLightbox';
+import { getLocale } from '@/lib/i18n-server';
+import { translate } from '@/lib/i18n';
 
 export default async function FanArtPage() {
-  const session = await auth();
+  const [session, locale] = await Promise.all([auth(), getLocale()]);
+  const t = (phrase: string) => translate(locale, phrase);
   const userId = session?.user?.id ?? null;
   const [contest, fanArts, mySubmissions] = await Promise.all([
     prisma.fanArtContest.findFirst({
@@ -68,11 +71,11 @@ export default async function FanArtPage() {
       <main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="mb-8 flex items-center justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">Fan Art</p>
-            <h1 className="mt-2 text-4xl font-bold tracking-tight text-white">Monthly community art</h1>
+            <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">{t('Fan Art')}</p>
+            <h1 className="mt-2 text-4xl font-bold tracking-tight text-white">{t('Monthly community art')}</h1>
           </div>
           <Link href="/franchises" className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-zinc-200 hover:bg-white/10">
-            Explore franchises
+            {t('Explore franchises')}
           </Link>
         </div>
 
@@ -99,13 +102,13 @@ export default async function FanArtPage() {
 
         {mySubmissions.length > 0 && (
           <section className="mb-10 rounded-2xl border border-white/10 bg-zinc-900/40 p-5">
-            <h2 className="text-lg font-bold text-white">Your contest submissions</h2>
+            <h2 className="text-lg font-bold text-white">{t('Your contest submissions')}</h2>
             <div className="mt-3 space-y-2">
               {mySubmissions.map((submission) => (
                 <div key={submission.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-black/20 px-3 py-2 text-sm">
                   <span className="text-zinc-200">{submission.title} · {submission.month} {submission.year}</span>
                   <span title={submission.rejectionReason ?? undefined} className={`text-xs ${submission.reviewStatus === 'APPROVED' ? 'text-emerald-300' : submission.reviewStatus === 'REJECTED' ? 'cursor-help text-red-300 underline decoration-dotted' : 'text-amber-300'}`}>
-                    {submission.reviewStatus === 'APPROVED' ? 'Approved for voting' : submission.reviewStatus === 'REJECTED' ? 'Not approved · hover for details' : 'Pending review'}
+                    {submission.reviewStatus === 'APPROVED' ? t('Approved for voting') : submission.reviewStatus === 'REJECTED' ? t('Not approved · hover for details') : t('Pending review')}
                   </span>
                 </div>
               ))}
@@ -114,12 +117,12 @@ export default async function FanArtPage() {
         )}
 
         <div className="mb-5">
-          <h2 className="text-xl font-bold text-white">Featured and past community art</h2>
-          <p className="mt-1 text-sm text-zinc-400">Winning art remains featured until a later contest winner replaces it.</p>
+          <h2 className="text-xl font-bold text-white">{t('Featured and past community art')}</h2>
+          <p className="mt-1 text-sm text-zinc-400">{t('Winning art remains featured until a later contest winner replaces it.')}</p>
         </div>
         {pastFanArts.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-white/15 bg-zinc-900/60 p-10 text-center text-zinc-400">
-            No approved community art has been published yet.
+            {t('No approved community art has been published yet.')}
           </div>
         ) : (
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
@@ -129,18 +132,18 @@ export default async function FanArtPage() {
                 <div className="space-y-3 p-5">
                   <div className="flex items-center justify-between gap-2">
                     <div>
-                      <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">{item.franchise?.name ?? 'Community'}</p>
+                      <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">{item.franchise?.name ?? t('Community')}</p>
                       <h2 className="mt-1 text-xl font-semibold text-white">{item.title}</h2>
                     </div>
                     {item.isFeatured && (
                       <span className="rounded-full border border-violet-400/30 bg-violet-500/10 px-2.5 py-1 text-[10px] uppercase tracking-[0.2em] text-violet-200">
-                        Featured
+                        {t('Featured')}
                       </span>
                     )}
                   </div>
 
                   <div className="flex items-center justify-between text-sm text-zinc-400">
-                    <span>Artist</span>
+                    <span>{t('Artist')}</span>
                     <span className="font-medium text-zinc-200">{item.artistName}</span>
                   </div>
 

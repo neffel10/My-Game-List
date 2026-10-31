@@ -3,12 +3,14 @@ import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import ProfileView, { AvatarItem } from '@/components/profile/ProfileView';
 import { FREE_AVATARS, getRankProgress } from '@/lib/gamification';
+import { getLocale } from '@/lib/i18n-server';
 
 export default async function ProfilePage() {
   const session = await auth();
   if (!session?.user?.id) {
     redirect('/');
   }
+  const locale = await getLocale();
 
   const userId = session.user.id;
 
@@ -110,7 +112,7 @@ export default async function ProfilePage() {
     pointsToNextRank: rankProgress.pointsToNext,
     rankBadge: rankProgress.current.badge,
     rankColor: rankProgress.current.color,
-    createdAt: new Date(user.createdAt).toLocaleDateString('en-US', {
+    createdAt: new Date(user.createdAt).toLocaleDateString(locale === 'es' ? 'es-MX' : 'en-US', {
       month: 'short',
       year: 'numeric',
     }),

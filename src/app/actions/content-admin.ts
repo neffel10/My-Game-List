@@ -6,6 +6,7 @@ import { uploadImageToBlob, uploadImageUrlToBlob } from '@/lib/blob-upload';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { after } from 'next/server';
+import sharp from 'sharp';
 import { fetchFranchiseGames, normalizePlatformNames, normalizeReleaseDate, normalizeReleaseYear } from '@/lib/rawg';
 import { getBlacklistedGamesForFranchise, isBlacklistedGameMatch } from '@/lib/game-blacklist';
 
@@ -16,6 +17,40 @@ const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? process.env.ADMIN_EMAIL ?? 'ad
 
 const ADMIN_BYPASS_ENABLED = (process.env.ADMIN_BYPASS ?? 'true').toLowerCase() === 'true';
 const MAX_IMAGE_SIZE = 3 * 1024 * 1024;
+const DEFAULT_FRANCHISE_BANNER = '/images/franchise-placeholder.svg';
+
+async function appendImportTaskLog(taskId: string, message: string) {
+  const task = await prisma.importTask.findUnique({
+    where: { id: taskId },
+    select: { log: true },
+  });
+  const timestamp = new Date().toISOString();
+  await prisma.importTask.update({
+    where: { id: taskId },
+    data: { log: [task?.log, `[${timestamp}] ${message}`].filter(Boolean).join('\n') },
+  });
+}
+
+async function createWatermarkedRewardPreview(file: File) {
+  const source = Buffer.from(await file.arrayBuffer());
+  const resized = await sharp(source)
+    .rotate()
+    .resize({ width: 1600, height: 1200, fit: 'inside', withoutEnlargement: true })
+    .jpeg({ quality: 84 })
+    .toBuffer({ resolveWithObject: true });
+  const watermark = Buffer.from(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="${resized.info.width}" height="${resized.info.height}">
+      <defs>
+        <pattern id="watermark" width="360" height="140" patternTransform="rotate(-25)" patternUnits="userSpaceOnUse">
+          <text x="0" y="75" fill="white" fill-opacity=".52" font-family="Arial,sans-serif" font-size="23" font-weight="700" letter-spacing="3">MY GAME LIST · PREVIEW</text>
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#watermark)"/>
+    </svg>
+  `);
+  const output = await sharp(resized.data).composite([{ input: watermark }]).jpeg({ quality: 84 }).toBuffer();
+  return new File([new Uint8Array(output)], 'reward-preview.jpg', { type: 'image/jpeg' });
+}
 
 function slugify(value: string) {
   return value
@@ -51,10 +86,9 @@ export async function createFranchise(formData: FormData) {
     const imageFile = formData.get('image');
     const imageUrl = String(formData.get('imageUrl') ?? '').trim();
 
-    if (name.length < 2 || name.length > 80 || (!(imageFile instanceof File) && !imageUrl)) {
+    if (name.length < 2 || name.length > 80) {
       console.error('[createFranchise validation failed]', {
         nameLength: name.length,
-        hasImage: imageFile instanceof File || Boolean(imageUrl),
       });
       redirect('/admin/content?error=franchise-input');
     }
@@ -82,15 +116,29 @@ export async function createFranchise(formData: FormData) {
           franchiseName: name,
           status: 'PENDING',
           phase: 'Queued for retry',
+          log: `[${new Date().toISOString()}] Retrying RAWG import for existing franchise "${name}".`,
         },
       });
       after(() => importFranchiseGames(task.id, existingFranchise.id, name, existingFranchise.coverImage));
       redirect(`/admin/content?task=${task.id}&retry=${encodeURIComponent(name)}`);
     }
 
-    const storedImageUrl = imageFile instanceof File
-      ? await uploadImageToBlob(imageFile, 'franchise-banners', MAX_IMAGE_SIZE)
-      : await uploadImageUrlToBlob(imageUrl, 'franchise-banners', MAX_IMAGE_SIZE);
+    let storedImageUrl = DEFAULT_FRANCHISE_BANNER;
+    let bannerFallback = false;
+    if (imageFile instanceof File && imageFile.size > 0) {
+      storedImageUrl = await uploadImageToBlob(imageFile, 'franchise-banners', MAX_IMAGE_SIZE);
+    } else if (imageUrl) {
+      try {
+        storedImageUrl = await uploadImageUrlToBlob(imageUrl, 'franchise-banners', MAX_IMAGE_SIZE);
+      } catch (error) {
+        if (!(error instanceof Error) || !error.message.startsWith('IMAGE_URL_ERROR:')) throw error;
+        bannerFallback = true;
+        console.warn('[createFranchise] Banner URL could not be downloaded; using the local placeholder.', error.message);
+      }
+    } else {
+      bannerFallback = true;
+    }
+
     const franchise = await prisma.franchise.create({
       data: {
         name,
@@ -110,6 +158,10 @@ export async function createFranchise(formData: FormData) {
         franchiseName: name,
         status: 'PENDING',
         phase: 'Queued',
+        log: [
+          `[${new Date().toISOString()}] Created franchise "${name}" and queued its RAWG import.`,
+          ...(bannerFallback ? ['Banner image unavailable; using the local placeholder.'] : []),
+        ].join('\n'),
       },
     });
 
@@ -118,7 +170,7 @@ export async function createFranchise(formData: FormData) {
     revalidatePath('/');
     revalidatePath('/franchises');
     revalidatePath('/admin/content');
-    redirect(`/admin/content?task=${task.id}`);
+    redirect(`/admin/content?task=${task.id}${bannerFallback ? '&banner=placeholder' : ''}`);
   } catch (error) {
     console.error('[createFranchise failed]', error);
     const digest = error && typeof error === 'object' && 'digest' in error
@@ -126,9 +178,6 @@ export async function createFranchise(formData: FormData) {
       : '';
     if (digest.startsWith('NEXT_REDIRECT')) {
       throw error;
-    }
-    if (error instanceof Error && error.message.startsWith('IMAGE_URL_ERROR:')) {
-      redirect(`/admin/content?error=franchise-image&message=${encodeURIComponent(error.message.replace('IMAGE_URL_ERROR: ', ''))}`);
     }
     throw error;
   }
@@ -167,6 +216,7 @@ export async function updateFranchiseBanner(formData: FormData) {
         where: { id: taskId },
         data: { status: 'RUNNING', phase: 'Querying RAWG', progress: 10 },
       });
+      await appendImportTaskLog(taskId, `Started RAWG import for "${name}".`);
 
       const config = { slug: slugify(name), name, aliases: [name], coverImage, fallbackGames: [] };
       const blacklistedGames = await getBlacklistedGamesForFranchise(config.slug);
@@ -177,6 +227,20 @@ export async function updateFranchiseBanner(formData: FormData) {
         rawgMatches: rawgGames.length,
         gamesAfterBlacklist: games.length,
       });
+      await appendImportTaskLog(
+        taskId,
+        `RAWG returned ${rawgGames.length} results; ${games.length} remained after franchise blacklist filtering.`,
+      );
+      if (games.length > 0) {
+        const importedTitleLog = games
+          .slice(0, 200)
+          .map((game, index) => `${index + 1}. ${game.name ?? 'Untitled Game'}${game.released ? ` (${game.released})` : ''}`)
+          .join('\n');
+        await appendImportTaskLog(
+          taskId,
+          `Import candidates:\n${importedTitleLog}${games.length > 200 ? `\n… ${games.length - 200} additional games omitted from this log.` : ''}`,
+        );
+      }
       const category = await prisma.subcategory.findFirstOrThrow({
         where: { franchiseId, title: 'Mainline & Spin-offs' },
         select: { id: true },
@@ -233,12 +297,14 @@ export async function updateFranchiseBanner(formData: FormData) {
           progress: 100,
         },
       });
+      await appendImportTaskLog(taskId, `Imported ${importedGames} game records. Task completed.`);
       revalidatePath('/');
       revalidatePath('/franchises');
       revalidatePath(`/franchises/${config.slug}`);
       revalidatePath('/admin/content');
     } catch (error) {
       console.error('[importFranchiseGames failed]', error);
+      await appendImportTaskLog(taskId, `Import failed: ${error instanceof Error ? error.message : String(error)}`);
       await prisma.importTask.update({
         where: { id: taskId },
         data: { status: 'FAILED', phase: 'Import failed', error: error instanceof Error ? error.message : String(error) },
@@ -377,18 +443,14 @@ export async function saveReward(formData: FormData) {
     const pointsRequired = Number(formData.get('pointsRequired') ?? 0);
     const stock = Number(formData.get('stock') ?? 1);
     const imageFile = formData.get('image');
-    const digitalFile = formData.get('digitalFile');
     const codeText = String(formData.get('digitalCodes') ?? '');
     const digitalCodes = [...new Set(codeText.split(/\r?\n/).map((code) => code.trim()).filter(Boolean))];
 
-    if (!title || !company || !(imageFile instanceof File) || !Number.isInteger(pointsRequired) || pointsRequired <= 0) {
-      throw new Error('Enter a title, sponsor, preview image, and positive whole-number point cost.');
+    if (!title || !company || !(imageFile instanceof File) || imageFile.size === 0 || !Number.isInteger(pointsRequired) || pointsRequired <= 0) {
+      throw new Error('Enter a title, sponsor, reward image, and positive whole-number point cost.');
     }
     if (deliveryType !== 'DIGITAL_DOWNLOAD' && deliveryType !== 'DIGITAL_CODE') {
       throw new Error('Only digital downloads and digital codes can be added as rewards.');
-    }
-    if (deliveryType === 'DIGITAL_DOWNLOAD' && !(digitalFile instanceof File)) {
-      throw new Error('Select the digital image file users will receive after redemption.');
     }
     if (deliveryType === 'DIGITAL_CODE' && (digitalCodes.length === 0 || digitalCodes.length > 1000)) {
       throw new Error('Add between 1 and 1,000 unique digital codes, one per line.');
@@ -398,9 +460,9 @@ export async function saveReward(formData: FormData) {
     }
 
     const [imageUrl, digitalAssetUrl] = await Promise.all([
-      uploadImageToBlob(imageFile, 'rewards/previews', MAX_IMAGE_SIZE),
-      deliveryType === 'DIGITAL_DOWNLOAD' && digitalFile instanceof File
-        ? uploadImageToBlob(digitalFile, 'rewards/digital', MAX_IMAGE_SIZE)
+      uploadImageToBlob(await createWatermarkedRewardPreview(imageFile), 'rewards/previews', MAX_IMAGE_SIZE),
+      deliveryType === 'DIGITAL_DOWNLOAD'
+        ? uploadImageToBlob(imageFile, 'rewards/digital', MAX_IMAGE_SIZE)
         : Promise.resolve(null),
     ]);
 
@@ -436,34 +498,135 @@ export async function saveReward(formData: FormData) {
   }
 }
 
-export async function toggleFanArtStatus(id: string, isActive: boolean) {
-  try {
-    await requireAdmin();
-    await prisma.fanArtSubmission.update({
-      where: { id },
-      data: { isActive },
-    });
-    revalidatePath('/');
-    revalidatePath('/admin/content');
-    revalidatePath('/fan-art');
-  } catch (error) {
-    console.error('toggleFanArtStatus failed:', error);
-    return;
+export async function updateReward(id: string, formData: FormData) {
+  await requireAdmin();
+  const title = String(formData.get('title') ?? '').trim();
+  const company = String(formData.get('company') ?? '').trim();
+  const description = String(formData.get('description') ?? '').trim();
+  const pointsRequired = Number(formData.get('pointsRequired') ?? 0);
+  const stock = Number(formData.get('stock') ?? 0);
+  const imageFile = formData.get('image');
+  const codeText = String(formData.get('digitalCodes') ?? '');
+
+  if (!id || !title || !company || !Number.isInteger(pointsRequired) || pointsRequired <= 0) {
+    return { error: 'Enter a title, sponsor, and positive whole-number point cost.' };
   }
+  if (imageFile instanceof File && imageFile.size > 0 && (!imageFile.type.startsWith('image/') || imageFile.size > MAX_IMAGE_SIZE)) {
+    return { error: 'Choose a valid image smaller than 3MB.' };
+  }
+
+  const reward = await prisma.reward.findUnique({
+    where: { id },
+    select: { deliveryType: true },
+  });
+  if (!reward) return { error: 'This reward no longer exists.' };
+  if (reward.deliveryType === 'DIGITAL_DOWNLOAD' && (!Number.isInteger(stock) || stock < 0)) {
+    return { error: 'Download stock must be a non-negative whole number.' };
+  }
+
+  const data: {
+    title: string;
+    company: string;
+    description: string | null;
+    pointsRequired: number;
+    stock?: number;
+    imageUrl?: string;
+    digitalAssetUrl?: string;
+  } = {
+    title,
+    company,
+    description: description || null,
+    pointsRequired,
+  };
+  if (reward.deliveryType === 'DIGITAL_DOWNLOAD') data.stock = stock;
+  if (imageFile instanceof File && imageFile.size > 0) {
+    const [imageUrl, digitalAssetUrl] = await Promise.all([
+      uploadImageToBlob(await createWatermarkedRewardPreview(imageFile), 'rewards/previews', MAX_IMAGE_SIZE),
+      reward.deliveryType === 'DIGITAL_DOWNLOAD'
+        ? uploadImageToBlob(imageFile, 'rewards/digital', MAX_IMAGE_SIZE)
+        : Promise.resolve(undefined),
+    ]);
+    data.imageUrl = imageUrl;
+    if (digitalAssetUrl) data.digitalAssetUrl = digitalAssetUrl;
+  }
+
+  if (reward.deliveryType === 'DIGITAL_CODE' && codeText.trim()) {
+    const digitalCodes = [...new Set(codeText.split(/\r?\n/).map((code) => code.trim()).filter(Boolean))];
+    if (digitalCodes.length > 1000) return { error: 'Add no more than 1,000 codes at a time.' };
+    await prisma.$transaction(async (tx) => {
+      await tx.reward.update({ where: { id }, data });
+      await tx.rewardDigitalCode.createMany({
+        data: digitalCodes.map((code) => ({ rewardId: id, code })),
+        skipDuplicates: true,
+      });
+      const availableCodes = await tx.rewardDigitalCode.count({ where: { rewardId: id, redemptionId: null } });
+      await tx.reward.update({ where: { id }, data: { stock: availableCodes } });
+    });
+  } else {
+    await prisma.reward.update({ where: { id }, data });
+  }
+
+  revalidatePath('/');
+  revalidatePath('/rewards');
+  revalidatePath('/admin/content');
+  return { success: true };
+}
+
+export async function deleteReward(id: string) {
+  await requireAdmin();
+  const reward = await prisma.reward.findUnique({
+    where: { id },
+    select: { _count: { select: { redemptions: true } } },
+  });
+  if (!reward) return { error: 'This reward no longer exists.' };
+  if (reward._count.redemptions > 0) {
+    return { error: 'This reward has redemption history and cannot be permanently deleted. Hide it to keep the record.' };
+  }
+
+  await prisma.reward.delete({ where: { id } });
+  revalidatePath('/');
+  revalidatePath('/rewards');
+  revalidatePath('/admin/content');
+  return { success: true };
+}
+
+export async function setImportTaskHidden(id: string, isHidden: boolean) {
+  await requireAdmin();
+  const updated = await prisma.importTask.updateMany({
+    where: { id, status: { in: ['COMPLETED', 'FAILED'] } },
+    data: { isHidden },
+  });
+  if (updated.count === 0) throw new Error('Only completed or failed import logs can be hidden.');
+  revalidatePath('/admin/content');
+}
+
+export async function deleteImportTask(id: string) {
+  await requireAdmin();
+  const deleted = await prisma.importTask.deleteMany({
+    where: { id, status: { in: ['COMPLETED', 'FAILED'] } },
+  });
+  if (deleted.count === 0) throw new Error('Only completed or failed import logs can be deleted.');
+  revalidatePath('/admin/content');
+}
+
+export async function toggleFanArtStatus(id: string, isActive: boolean) {
+  await requireAdmin();
+  await prisma.fanArtSubmission.update({
+    where: { id },
+    data: { isActive },
+  });
+  revalidatePath('/');
+  revalidatePath('/admin/content');
+  revalidatePath('/fan-art');
 }
 
 export async function toggleRewardStatus(id: string, isActive: boolean) {
-  try {
-    await requireAdmin();
-    await prisma.reward.update({
-      where: { id },
-      data: { isActive },
-    });
-    revalidatePath('/');
-    revalidatePath('/admin/content');
-    revalidatePath('/rewards');
-  } catch (error) {
-    console.error('toggleRewardStatus failed:', error);
-    return;
-  }
+  await requireAdmin();
+  await prisma.reward.update({
+    where: { id },
+    data: { isActive },
+  });
+  revalidatePath('/');
+  revalidatePath('/admin/content');
+  revalidatePath('/rewards');
 }
